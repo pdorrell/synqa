@@ -1,4 +1,21 @@
 
+class HashCommand
+  
+  attr_reader :command, :length, :spacerLen
+  
+  def initialize(command, length, spacerLen)
+    @command = command
+    @length = length
+    @spacerLen = spacerLen
+  end
+end
+
+class Sha256SumCommand<HashCommand
+  def initialize
+    super(["sha256sum"], 64, 2)
+  end
+end
+
 class DirContentReader
     
   attr_reader :shell, :host, :pathPrefix, :hashCommand
@@ -65,7 +82,8 @@ class CygwinLocalContentReader<DirContentReader
   end
   
   def getFileHash(filePath)
-    output = getCommandOutput([pathPrefix + hashCommand[0]] + hashCommand[1..-1] + [filePath])
+    command = hashCommand.command
+    output = getCommandOutput([pathPrefix + command[0]] + command[1..-1] + [filePath])
     puts "  hash of #{filePath}"
     hashLine = nil
     while (line = output.gets)
