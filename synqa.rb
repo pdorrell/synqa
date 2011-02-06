@@ -31,11 +31,21 @@ class HashCommand
       raise "File #{fullPath} from hash line is not in base dir #{baseDir}"
     end
   end
+  
+  def to_s
+    return command.join(" ")
+  end
 end
 
 class Sha256SumCommand<HashCommand
   def initialize
     super(["sha256sum"], 64, 2)
+  end
+end
+
+class Sha256Command<HashCommand
+  def initialize
+    super(["sha256", "-r"], 64, 1)
   end
 end
 
@@ -103,6 +113,11 @@ class SshContentReader<DirContentReader
     @host = host
   end
   
+  def locationDescriptor(baseDir)
+    baseDir = normalisedDir(baseDir)
+    return "#{host}:#{baseDir} (shell = #{shell}, hashCommand = #{hashCommand})"
+  end
+  
   def executeRemoteCommand(commandString)
     output = getCommandOutput(shell + [host, commandString])
     puts " executing #{commandString} on #{host} using #{shell.join(" ")} ..."
@@ -143,6 +158,11 @@ class CygwinLocalContentReader<DirContentReader
     super(hashCommand, cygwinPath)
   end
   
+  def locationDescriptor(baseDir)
+    baseDir = normalisedDir(baseDir)
+    return "#{baseDir} (cygwinPath = #{pathPrefix.inspect}, hashCommand = #{hashCommand})"
+  end
+
   def getFileHashLine(filePath)
     command = hashCommand.command
     output = getCommandOutput([pathPrefix + command[0]] + command[1..-1] + [filePath])
@@ -178,5 +198,24 @@ class CygwinLocalContentReader<DirContentReader
   end    
 end
 
+class ContentLocation
+  attr_reader :host, :baseDir
   
+  def initialize(host, baseDir)
+    @host = host
+    @baseDir = baseDir
+  end
   
+  def listDirectories
+    return host.listDirectories(baseDir)
+  end
+  
+  def listFileHashes
+    return host.listFileHashes(baseDir)
+  end
+  
+  def to_s
+    return host.locationDescriptor(baseDir)
+  end
+  
+end
