@@ -41,21 +41,23 @@ end
 
 class DirContentReader
     
-  attr_reader :shell, :host, :pathPrefix, :hashCommand
+  attr_reader :hashCommand, :pathPrefix
     
-  def initialize(hashCommand, shell, host, pathPrefix = "")
-    puts "DirContentReader.initialize , hashCommand = #{hashCommand} pathPrefix = #{pathPrefix}"
+  def initialize(hashCommand, pathPrefix = "")
     @hashCommand = hashCommand
-    @shell = shell
-    @host = host
     @pathPrefix = pathPrefix
   end
   
   def findDirectoriesCommand(baseDir)
-    return ["#{@pathPrefix}find.exe", baseDir, "-type", "d", "-print"]
+    return ["#{@pathPrefix}find", baseDir, "-type", "d", "-print"]
+  end
+  
+  def normalisedDir(baseDir)
+    return baseDir.end_with?("/") ? baseDir : baseDir + "/"
   end
   
   def listDirectories(baseDir)
+    baseDir = normalisedDir(baseDir)
     output = getCommandOutput(findDirectoriesCommand(baseDir))
     directories = []
     baseDirLen = baseDir.length
@@ -73,24 +75,64 @@ class DirContentReader
   end
   
   def findFilesCommand(baseDir)
-    return ["#{@pathPrefix}find.exe", baseDir, "-type", "f", "-print"]
+    return ["#{@pathPrefix}find", baseDir, "-type", "f", "-print"]
   end
   
   def listFileHashes(baseDir)
+    baseDir = normalisedDir(baseDir)
     fileHashes = []
-    for fileHashLine in listFileHashLines(baseDir) do
+    listFileHashLines(baseDir) do |fileHashLine|
       fileHashes << self.hashCommand.parseFileHashLine(baseDir, fileHashLine)
     end
     return fileHashes
   end
     
+  def getCommandOutput(command)
+    puts "#{command.inspect} ..."
+    return IO.popen(command)
+  end    
+end
+
+class SshContentReader<DirContentReader
+  
+  attr_reader :shell, :host
+    
+  def initialize(hashCommand, shell, host)
+    super(hashCommand)
+    @shell = shell.is_a?(String) ? [shell] : shell
+    @host = host
+  end
+  
+  def executeRemoteCommand(commandString)
+    output = getCommandOutput(shell + [host, commandString])
+    puts " executing #{commandString} on #{host} using #{shell.join(" ")} ..."
+    while (line = output.gets)
+      yield line.chomp
+    end
+  end
+    
+  def listDirectories(baseDir)
+    baseDir = normalisedDir(baseDir)
+    puts "Listing directories ..."
+    directories = []
+    baseDirLen = baseDir.length
+    executeRemoteCommand(findDirectoriesCommand(baseDir).join(" ")) do |line|
+      puts " #{line}"
+      if line.start_with?(baseDir)
+        directories << line[baseDirLen..-1]
+      else
+        raise "Directory #{line} is not a sub-directory of base directory #{baseDir}"
+      end
+    end
+    return directories
+  end
+      
 end
 
 class CygwinLocalContentReader<DirContentReader
   
   def initialize(hashCommand, cygwinPath = "")
-    super(hashCommand, nil, nil, cygwinPath)
-    puts "pathPrefix = #{@pathPrefix}"
+    super(hashCommand, cygwinPath)
   end
   
   def getFileHashLine(filePath)
@@ -106,8 +148,8 @@ class CygwinLocalContentReader<DirContentReader
   end
 
   def listFileHashLines(baseDir)
+    baseDir = normalisedDir(baseDir)
     output = getCommandOutput(findFilesCommand(baseDir))
-    hashLines = []
     baseDirLen = baseDir.length
     puts "Listing files ..."
     while (line = output.gets)
@@ -115,13 +157,11 @@ class CygwinLocalContentReader<DirContentReader
       puts " #{filePath}"
       if filePath.start_with?(baseDir)
         relativePath = filePath[baseDirLen..-1]
-        hashLine = getFileHashLine(filePath)
-        hashLines << hashLine
+        yield getFileHashLine(filePath)
       else
         raise "File #{filePath} is not contained within base directory #{baseDir}"
       end
     end
-    return hashLines
   end
 
   def getCommandOutput(command)
