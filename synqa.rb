@@ -1,4 +1,17 @@
 
+class RelativePathWithHash
+  attr_reader :relativePath, :hash
+  
+  def initialize(relativePath, hash)
+    @relativePath = relativePath
+    @hash = hash
+  end
+  
+  def inspect
+    return "RelativePathWithHash[#{relativePath}, #{hash}]"
+  end
+end
+
 class HashCommand
   
   attr_reader :command, :length, :spacerLen
@@ -7,6 +20,16 @@ class HashCommand
     @command = command
     @length = length
     @spacerLen = spacerLen
+  end
+  
+  def parseFileHashLine(baseDir, fileHashLine)
+    hash = fileHashLine[0...length]
+    fullPath = fileHashLine[(length + spacerLen)..-1]
+    if fullPath.start_with?(baseDir)
+      return RelativePathWithHash.new(fullPath[baseDir.length..-1], hash)
+    else
+      raise "File #{fullPath} from hash line is not in base dir #{baseDir}"
+    end
   end
 end
 
@@ -53,23 +76,12 @@ class DirContentReader
     return ["#{@pathPrefix}find.exe", baseDir, "-type", "f", "-print"]
   end
   
-  def listFileHashLines(baseDir)
-    output = getCommandOutput(findFilesCommand(baseDir))
-    hashLines = []
-    baseDirLen = baseDir.length
-    puts "Listing files ..."
-    while (line = output.gets)
-      filePath = line.chomp
-      puts " #{filePath}"
-      if filePath.start_with?(baseDir)
-        relativePath = filePath[baseDirLen..-1]
-        hashLine = getFileHashLine(filePath)
-        hashLines << hashLine
-      else
-        raise "File #{filePath} is not contained within base directory #{baseDir}"
-      end
+  def listFileHashes(baseDir)
+    fileHashes = []
+    for fileHashLine in listFileHashLines(baseDir) do
+      fileHashes << self.hashCommand.parseFileHashLine(baseDir, fileHashLine)
     end
-    return hashLines
+    return fileHashes
   end
     
 end
@@ -91,6 +103,25 @@ class CygwinLocalContentReader<DirContentReader
       puts "    #{hashLine}"
     end
     return hashLine
+  end
+
+  def listFileHashLines(baseDir)
+    output = getCommandOutput(findFilesCommand(baseDir))
+    hashLines = []
+    baseDirLen = baseDir.length
+    puts "Listing files ..."
+    while (line = output.gets)
+      filePath = line.chomp
+      puts " #{filePath}"
+      if filePath.start_with?(baseDir)
+        relativePath = filePath[baseDirLen..-1]
+        hashLine = getFileHashLine(filePath)
+        hashLines << hashLine
+      else
+        raise "File #{filePath} is not contained within base directory #{baseDir}"
+      end
+    end
+    return hashLines
   end
 
   def getCommandOutput(command)
