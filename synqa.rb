@@ -198,6 +198,82 @@ class CygwinLocalContentReader<DirContentReader
   end    
 end
 
+class FileContent
+  attr_reader :name, :hash
+  
+  def initialize(name, hash)
+    @name = name
+    @hash = hash
+  end
+  
+  def to_s
+    return "#{name} (#{hash})"
+  end
+end
+  
+class ContentTree
+  attr_reader :name, :files, :dirs, :fileByName, :dirByName
+  
+  def initialize(name)
+    @name = name
+    @files = []
+    @dirs = []
+    @fileByName = {}
+    @dirByName = {}
+  end
+  
+  def getPathElements(path)
+    return path.is_a?(String) ? (path == "" ? [] : path.split("/")) : path
+  end
+  
+  def getContentTreeForSubDir(subDir)
+    dirContentTree = dirByName.fetch(subDir, nil)
+    if dirContentTree == nil
+      dirContentTree = ContentTree.new(subDir)
+      dirs << dirContentTree
+      dirByName[subDir] = dirContentTree
+    end
+    return dirContentTree
+  end
+  
+  def addDir(dirPath)
+    pathElements = getPathElements(dirPath)
+    if pathElements.length > 0
+      pathStart = pathElements[0]
+      restOfPath = pathElements[1..-1]
+      getContentTreeForSubDir(pathStart).addDir(restOfPath)
+    end
+  end
+  
+  def addFile(filePath, hash)
+    pathElements = getPathElements(filePath)
+    if pathElements.length == 0
+      raise "Invalid file path: #{filePath.inspect}"
+    end
+    if pathElements.length == 1
+      fileName = pathElements[0]
+      fileContent = FileContent.new(fileName, hash)
+      files << fileContent
+      fileByName[fileName] = fileContent
+    else
+      pathStart = pathElements[0]
+      restOfPath = pathElements[1..-1]
+      getContentTreeForSubDir(pathStart).addFile(restOfPath, hash)
+    end
+  end
+  
+  def showIndented(name = "", indent = "  ", currentIndent = "")
+    puts "#{currentIndent}#{name}"
+    nextIndent = currentIndent + indent
+    for dir in dirs do
+      dir.showIndented("#{dir.name}/", indent = indent, currentIndent = nextIndent)
+    end
+    for file in files do
+      puts "#{nextIndent}#{file.name}  - #{file.hash}"
+    end
+  end
+end
+
 class ContentLocation
   attr_reader :host, :baseDir
   
@@ -218,4 +294,15 @@ class ContentLocation
     return host.locationDescriptor(baseDir)
   end
   
+  def getContentTree
+    contentTree = ContentTree.new(baseDir)
+    for dir in listDirectories()
+      contentTree.addDir(dir)
+    end
+    for fileHash in listFileHashes()
+      contentTree.addFile(fileHash.relativePath, fileHash.hash)
+    end
+    return contentTree
+  end
 end
+
