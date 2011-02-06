@@ -12,13 +12,21 @@ class DirContentReader
   end
   
   def findDirectoriesCommand(baseDir)
-    return "#{@pathPrefix}find #{baseDir} -type d -print"
+    return ["#{@pathPrefix}find.exe", baseDir, "-type", "d", "-print"]
   end
   
-  def findDirectories(baseDir)
-    command = findDirectoriesCommand(baseDir)
-    puts "#{command} ..."
-    system({"CYGWIN" => "nodosfilewarning"}, command)
+  def findDirectoriesOutput(baseDir)
+    return getCommandOutput(findDirectoriesCommand(baseDir))
+  end
+  
+  def listDirectories(baseDir)
+    output = findDirectoriesOutput(baseDir)
+    directories = []
+    while (line = output.gets)
+      line = line.chomp
+      directories << line
+    end
+    return directories
   end
 end
 
@@ -29,6 +37,10 @@ class CygwinLocalContentReader<DirContentReader
     puts "pathPrefix = #{@pathPrefix}"
   end
 
+  def getCommandOutput(command)
+    puts "#{command.inspect} ..."
+    return IO.popen([{"CYGWIN" => "nodosfilewarning"}] + command)
+  end    
 end
 
   
