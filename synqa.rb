@@ -22,9 +22,14 @@ class DirContentReader
   def listDirectories(baseDir)
     output = findDirectoriesOutput(baseDir)
     directories = []
+    baseDirLen = baseDir.length
     while (line = output.gets)
       line = line.chomp
-      directories << line
+      if line.start_with?(baseDir)
+        directories << line[baseDirLen..-1]
+      else
+        raise "Directory #{line} is not a sub-directory of base directory #{baseDir}"
+      end
     end
     return directories
   end
