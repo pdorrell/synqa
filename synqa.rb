@@ -126,7 +126,15 @@ class SshContentReader<DirContentReader
     end
     return directories
   end
-      
+
+  def listFileHashLines(baseDir)
+    baseDir = normalisedDir(baseDir)
+    remoteFileHashLinesCommand = findFilesCommand(baseDir) + ["|", "xargs"] + @hashCommand.command
+    executeRemoteCommand(remoteFileHashLinesCommand.join(" ")) do |line| 
+      puts " #{line}"
+      yield line 
+    end
+  end
 end
 
 class CygwinLocalContentReader<DirContentReader
