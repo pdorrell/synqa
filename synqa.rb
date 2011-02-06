@@ -53,23 +53,23 @@ class DirContentReader
     return ["#{@pathPrefix}find.exe", baseDir, "-type", "f", "-print"]
   end
   
-  def listFileHashes(baseDir)
+  def listFileHashLines(baseDir)
     output = getCommandOutput(findFilesCommand(baseDir))
-    files = []
+    hashLines = []
     baseDirLen = baseDir.length
     puts "Listing files ..."
     while (line = output.gets)
       filePath = line.chomp
       puts " #{filePath}"
-      if line.start_with?(baseDir)
+      if filePath.start_with?(baseDir)
         relativePath = filePath[baseDirLen..-1]
-        hash = getFileHash(filePath)
-        files << [relativePath, hash]
+        hashLine = getFileHashLine(filePath)
+        hashLines << hashLine
       else
-        raise "File #{line} is not contained within base directory #{baseDir}"
+        raise "File #{filePath} is not contained within base directory #{baseDir}"
       end
     end
-    return files
+    return hashLines
   end
     
 end
@@ -81,7 +81,7 @@ class CygwinLocalContentReader<DirContentReader
     puts "pathPrefix = #{@pathPrefix}"
   end
   
-  def getFileHash(filePath)
+  def getFileHashLine(filePath)
     command = hashCommand.command
     output = getCommandOutput([pathPrefix + command[0]] + command[1..-1] + [filePath])
     puts "  hash of #{filePath}"
