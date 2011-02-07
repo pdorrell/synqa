@@ -471,3 +471,25 @@ class ContentLocation
   
 end
 
+class SyncOperation
+  attr_reader :sourceLocation, :destinationLocation
+  
+  def initialize(sourceLocation, destinationLocation)
+    @sourceLocation = sourceLocation
+    @destinationLocation = destinationLocation
+  end
+  
+  def getContentTrees
+    @sourceContent = @sourceLocation.getContentTree()
+    @destinationContent = @destinationLocation.getContentTree()
+  end
+  
+  def markSyncOperations
+    @sourceContent.markSyncOperationsForDestination(@destinationContent)
+    puts " ================================================ "
+    puts "After marking for sync --"
+    @sourceContent.showIndented()
+    @destinationContent.showIndented()
+  end
+end
+
