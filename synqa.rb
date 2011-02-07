@@ -143,6 +143,12 @@ class SshContentHost<DirContentHost
       yield line.chomp
     end
   end
+  
+  def ssh(commandString)
+    executeRemoteCommand(commandString) do |line|
+      puts line
+    end
+  end
     
   def listDirectories(baseDir)
     baseDir = normalisedDir(baseDir)
@@ -435,6 +441,10 @@ class ContentLocation
     @host = host
     @baseDir = normalisedDir(baseDir)
     @cachedContentFile = cachedContentFile
+  end
+  
+  def ssh(commandString)
+    host.ssh(commandString)
   end
   
   def listDirectories
