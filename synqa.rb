@@ -217,76 +217,58 @@ class CygwinLocalContentHost<DirContentHost
 end
 
 class FileContent
-  attr_reader :name, :hash
+  attr_reader :name, :hash, :parentPathElements, :copyDestination, :toBeDeleted
   
-  def initialize(name, hash)
+  def initialize(name, hash, parentPathElements)
     @name = name
     @hash = hash
+    @parentPathElements = parentPathElements
+    @copyDestination = nil
+    @toBeDeleted = false
+  end
+  
+  def markToCopy(destinationDirectory)
+    @copyDestination = destinationDirectory
+  end
+  
+  def markToDelete
+    @toBeDeleted = true
   end
   
   def to_s
     return "#{name} (#{hash})"
   end
+  
+  def fullPath
+    return parentPathElements.join("/")
+  end
 end
 
-class SyncOperations
-  attr_reader :dirsToCopy, :filesToCopy, :dirsToDelete, :filesToDelete
-  
-  def initialize
-    @dirsToCopy = []
-    @filesToCopy = []
-    @dirsToDelete = []
-    @filesToDelete = []
-  end
-  
-  def copyDir(dir, baseDir)
-    @dirsToCopy << [dir, baseDir]
-  end
-  
-  def copyFile(file, baseDir)
-    @filesToCopy << [file, baseDir]
-  end
-  
-  def deleteDir(dir)
-    @dirsToDelete << dir
-  end
-  
-  def deleteFile(file)
-    @filesToDelete << file
-  end
-  
-  def show(source, destination)
-    puts "Sync operations from #{source} to #{destination}:"
-    puts "  directories to copy:"
-    for dirSrcAndDest in dirsToCopy do
-      puts "    #{dirSrcAndDest[0]} => #{dirSrcAndDest[1]}"
-    end
-    puts "  files to copy:"
-    for srcAndDest in filesToCopy do
-      puts "    #{srcAndDest[0]} => #{srcAndDest[1]}"
-    end
-    puts "  directories to delete:"
-    for dir in dirsToDelete do
-      puts "    #{dir}"
-    end
-    puts "  files to delete:"
-    for file in filesToDelete do
-      puts "    #{file}"
-    end
-    puts "End of sync operations."
-  end
-  
-end
-  
 class ContentTree
-  attr_reader :name, :files, :dirs, :fileByName, :dirByName
+  attr_reader :name, :pathElements, :files, :dirs, :fileByName, :dirByName
+  attr_reader :copyDestination, :toBeDeleted
   
-  def initialize(name = "")
+  def initialize(name = nil, parentPathElements = nil)
     @name = name
+    @pathElements = name == nil ? [] : parentPathElements + [name]
     @files = []
     @dirs = []
     @fileByName = {}
     @dirByName = {}
+    @copyDestination = nil
+    @toBeDeleted = false
+  end
+  
+  def markToCopy(destinationDirectory)
+    @copyDestination = destinationDirectory
+  end
+  
+  def markToDelete
+    @toBeDeleted = true
+  end
+  
+  def fullPath
+    return @pathElements.join("/")
   end
   
   def getPathElements(path)
@@ -296,7 +278,7 @@ class ContentTree
   def getContentTreeForSubDir(subDir)
     dirContentTree = dirByName.fetch(subDir, nil)
     if dirContentTree == nil
-      dirContentTree = ContentTree.new(subDir)
+      dirContentTree = ContentTree.new(subDir, @pathElements)
       dirs << dirContentTree
       dirByName[subDir] = dirContentTree
     end
@@ -319,7 +301,7 @@ class ContentTree
     end
     if pathElements.length == 1
       fileName = pathElements[0]
-      fileContent = FileContent.new(fileName, hash)
+      fileContent = FileContent.new(fileName, hash, @pathElements)
       files << fileContent
       fileByName[fileName] = fileContent
     else
@@ -331,12 +313,18 @@ class ContentTree
   
   def showIndented(name = "", indent = "  ", currentIndent = "")
     puts "#{currentIndent}#{name}"
+    if copyDestination != nil
+      puts "#{currentIndent} [COPY to #{copyDestination.fullPath}]"
+    end
     nextIndent = currentIndent + indent
     for dir in dirs do
       dir.showIndented("#{dir.name}/", indent = indent, currentIndent = nextIndent)
     end
     for file in files do
       puts "#{nextIndent}#{file.name}  - #{file.hash}"
+      if file.copyDestination != nil
+        puts "#{nextIndent} [COPY to #{file.copyDestination.fullPath}]"
+      end
     end
   end
   
@@ -386,10 +374,8 @@ class ContentTree
     return contentTree
   end
   
-  def getSyncOperationsForDestination(destination)
-    syncOperations = SyncOperations.new()
-    addCopyOperations(syncOperations, destination)
-    return syncOperations
+  def markSyncOperationsForDestination(destination)
+    markCopyOperations(destination)
   end
   
   def getDir(dir)
@@ -400,20 +386,19 @@ class ContentTree
     return fileByName.fetch(file, nil)
   end
   
-  def addCopyOperations(syncOperations, destination, prefix = "")
-    fullDirName = "#{prefix}#{name}"
+  def markCopyOperations(destinationDir)
     for dir in dirs
-      destinationDir = destination.getDir(dir.name)
-      if destinationDir != nil
-        dir.addCopyOperations(syncOperations, destinationDir, "#{fullDirName}/")
+      destinationSubDir = destinationDir.getDir(dir.name)
+      if destinationSubDir != nil
+        dir.markCopyOperations(destinationSubDir)
       else
-        syncOperations.copyDir("#{fullDirName}/#{dir.name}", "#{fullDirName}")
+        dir.markToCopy(destinationDir)
       end
     end
     for file in files
-      destinationFile = destination.getFile(file.name)
+      destinationFile = destinationDir.getFile(file.name)
       if destinationFile == nil or destinationFile.hash != file.hash
-        syncOperations.copyFile("#{fullDirName}/#{file.name}", "#{fullDirName}")
+        file.markToCopy(destinationDir)
       end
     end
   end
