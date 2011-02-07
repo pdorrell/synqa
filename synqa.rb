@@ -49,7 +49,11 @@ class Sha256Command<HashCommand
   end
 end
 
-class DirContentReader
+def normalisedDir(baseDir)
+  return baseDir.end_with?("/") ? baseDir : baseDir + "/"
+end
+  
+class DirContentHost
     
   attr_reader :hashCommand, :pathPrefix
     
@@ -60,10 +64,6 @@ class DirContentReader
   
   def findDirectoriesCommand(baseDir)
     return ["#{@pathPrefix}find", baseDir, "-type", "d", "-print"]
-  end
-  
-  def normalisedDir(baseDir)
-    return baseDir.end_with?("/") ? baseDir : baseDir + "/"
   end
   
   def listDirectories(baseDir)
@@ -101,9 +101,20 @@ class DirContentReader
     puts "#{command.inspect} ..."
     return IO.popen(command)
   end    
+
+  def getContentTree(baseDir)
+    contentTree = ContentTree.new(baseDir)
+    for dir in listDirectories(baseDir)
+      contentTree.addDir(dir)
+    end
+    for fileHash in listFileHashes(baseDir)
+      contentTree.addFile(fileHash.relativePath, fileHash.hash)
+    end
+    return contentTree
+  end
 end
 
-class SshContentReader<DirContentReader
+class SshContentHost<DirContentHost
   
   attr_reader :shell, :host
     
@@ -152,7 +163,7 @@ class SshContentReader<DirContentReader
   end
 end
 
-class CygwinLocalContentReader<DirContentReader
+class CygwinLocalContentHost<DirContentHost
   
   def initialize(hashCommand, cygwinPath = "")
     super(hashCommand, cygwinPath)
@@ -279,7 +290,7 @@ class ContentLocation
   
   def initialize(host, baseDir)
     @host = host
-    @baseDir = baseDir
+    @baseDir = normalisedDir(baseDir)
   end
   
   def listDirectories
@@ -295,14 +306,8 @@ class ContentLocation
   end
   
   def getContentTree
-    contentTree = ContentTree.new(baseDir)
-    for dir in listDirectories()
-      contentTree.addDir(dir)
-    end
-    for fileHash in listFileHashes()
-      contentTree.addFile(fileHash.relativePath, fileHash.hash)
-    end
-    return contentTree
+    return host.getContentTree(baseDir)
   end
+  
 end
 
