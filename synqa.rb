@@ -316,6 +316,9 @@ class ContentTree
     if copyDestination != nil
       puts "#{currentIndent} [COPY to #{copyDestination.fullPath}]"
     end
+    if toBeDeleted
+      puts "#{currentIndent} [DELETE]"
+    end
     nextIndent = currentIndent + indent
     for dir in dirs do
       dir.showIndented("#{dir.name}/", indent = indent, currentIndent = nextIndent)
@@ -324,6 +327,9 @@ class ContentTree
       puts "#{nextIndent}#{file.name}  - #{file.hash}"
       if file.copyDestination != nil
         puts "#{nextIndent} [COPY to #{file.copyDestination.fullPath}]"
+      end
+      if file.toBeDeleted
+        puts "#{nextIndent} [DELETE]"
       end
     end
   end
@@ -376,6 +382,7 @@ class ContentTree
   
   def markSyncOperationsForDestination(destination)
     markCopyOperations(destination)
+    destination.markDeleteOptions(self)
   end
   
   def getDir(dir)
@@ -399,6 +406,23 @@ class ContentTree
       destinationFile = destinationDir.getFile(file.name)
       if destinationFile == nil or destinationFile.hash != file.hash
         file.markToCopy(destinationDir)
+      end
+    end
+  end
+  
+  def markDeleteOptions(sourceDir)
+    for dir in dirs
+      sourceSubDir = sourceDir.getDir(dir.name)
+      if sourceSubDir == nil
+        dir.markToDelete()
+      else
+        dir.markDeleteOptions(sourceSubDir)
+      end
+    end
+    for file in files
+      sourceFile = sourceDir.getFile(file.name)
+      if sourceFile == nil
+        file.markToDelete()
       end
     end
   end
