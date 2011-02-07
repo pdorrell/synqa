@@ -27,6 +27,9 @@ class HashCommand
     fullPath = fileHashLine[(length + spacerLen)..-1]
     if fullPath.start_with?(baseDir)
       return RelativePathWithHash.new(fullPath[baseDir.length..-1], hash)
+    elsif fullPath == "-"
+      puts "Ignoring hash line for '-' file (caused by no files in directory)"
+      return nil
     else
       raise "File #{fullPath} from hash line is not in base dir #{baseDir}"
     end
@@ -92,7 +95,10 @@ class DirContentHost
     baseDir = normalisedDir(baseDir)
     fileHashes = []
     listFileHashLines(baseDir) do |fileHashLine|
-      fileHashes << self.hashCommand.parseFileHashLine(baseDir, fileHashLine)
+      fileHash = self.hashCommand.parseFileHashLine(baseDir, fileHashLine)
+      if fileHash != nil
+        fileHashes << fileHash
+      end
     end
     return fileHashes
   end
@@ -103,7 +109,7 @@ class DirContentHost
   end    
 
   def getContentTree(baseDir)
-    contentTree = ContentTree.new(baseDir)
+    contentTree = ContentTree.new()
     for dir in listDirectories(baseDir)
       contentTree.addDir(dir)
     end
@@ -116,17 +122,18 @@ end
 
 class SshContentHost<DirContentHost
   
-  attr_reader :shell, :host
+  attr_reader :shell, :scpProgram, :host
     
-  def initialize(hashCommand, shell, host)
+  def initialize(hashCommand, shell, scpProgram, host)
     super(hashCommand)
     @shell = shell.is_a?(String) ? [shell] : shell
+    @scpProgram = scpProgram.is_a?(String) ? [scpProgram] : scpProgram
     @host = host
   end
   
   def locationDescriptor(baseDir)
     baseDir = normalisedDir(baseDir)
-    return "#{host}:#{baseDir} (shell = #{shell}, hashCommand = #{hashCommand})"
+    return "#{host}:#{baseDir} (connect = #{shell}/#{scpProgram}, hashCommand = #{hashCommand})"
   end
   
   def executeRemoteCommand(commandString)
@@ -221,11 +228,60 @@ class FileContent
     return "#{name} (#{hash})"
   end
 end
+
+class SyncOperations
+  attr_reader :dirsToCopy, :filesToCopy, :dirsToDelete, :filesToDelete
+  
+  def initialize
+    @dirsToCopy = []
+    @filesToCopy = []
+    @dirsToDelete = []
+    @filesToDelete = []
+  end
+  
+  def copyDir(dir, baseDir)
+    @dirsToCopy << [dir, baseDir]
+  end
+  
+  def copyFile(file, baseDir)
+    @filesToCopy << [file, baseDir]
+  end
+  
+  def deleteDir(dir)
+    @dirsToDelete << dir
+  end
+  
+  def deleteFile(file)
+    @filesToDelete << file
+  end
+  
+  def show(source, destination)
+    puts "Sync operations from #{source} to #{destination}:"
+    puts "  directories to copy:"
+    for dirSrcAndDest in dirsToCopy do
+      puts "    #{dirSrcAndDest[0]} => #{dirSrcAndDest[1]}"
+    end
+    puts "  files to copy:"
+    for srcAndDest in filesToCopy do
+      puts "    #{srcAndDest[0]} => #{srcAndDest[1]}"
+    end
+    puts "  directories to delete:"
+    for dir in dirsToDelete do
+      puts "    #{dir}"
+    end
+    puts "  files to delete:"
+    for file in filesToDelete do
+      puts "    #{file}"
+    end
+    puts "End of sync operations."
+  end
+  
+end
   
 class ContentTree
   attr_reader :name, :files, :dirs, :fileByName, :dirByName
   
-  def initialize(name)
+  def initialize(name = "")
     @name = name
     @files = []
     @dirs = []
@@ -328,6 +384,38 @@ class ContentTree
       end
     end
     return contentTree
+  end
+  
+  def getSyncOperationsForDestination(destination)
+    syncOperations = SyncOperations.new()
+    addCopyOperations(syncOperations, destination)
+    return syncOperations
+  end
+  
+  def getDir(dir)
+    return dirByName.fetch(dir, nil)
+  end
+  
+  def getFile(file)
+    return fileByName.fetch(file, nil)
+  end
+  
+  def addCopyOperations(syncOperations, destination, prefix = "")
+    fullDirName = "#{prefix}#{name}"
+    for dir in dirs
+      destinationDir = destination.getDir(dir.name)
+      if destinationDir != nil
+        dir.addCopyOperations(syncOperations, destinationDir, "#{fullDirName}/")
+      else
+        syncOperations.copyDir("#{fullDirName}/#{dir.name}", "#{fullDirName}")
+      end
+    end
+    for file in files
+      destinationFile = destination.getFile(file.name)
+      if destinationFile == nil or destinationFile.hash != file.hash
+        syncOperations.copyFile("#{fullDirName}/#{file.name}", "#{fullDirName}")
+      end
+    end
   end
 end
 
