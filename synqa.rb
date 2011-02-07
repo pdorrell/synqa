@@ -122,13 +122,14 @@ end
 
 class SshContentHost<DirContentHost
   
-  attr_reader :shell, :scpProgram, :host
+  attr_reader :shell, :scpProgram, :host, :scpCommandString
     
   def initialize(hashCommand, shell, scpProgram, host)
     super(hashCommand)
     @shell = shell.is_a?(String) ? [shell] : shell
     @scpProgram = scpProgram.is_a?(String) ? [scpProgram] : scpProgram
     @host = host
+    @scpCommandString = @scpProgram.join(" ")
   end
   
   def locationDescriptor(baseDir)
@@ -148,6 +149,10 @@ class SshContentHost<DirContentHost
     executeRemoteCommand(commandString) do |line|
       puts line
     end
+  end
+  
+  def sshDry(commandString)
+    puts "EXECUTE #{commandString} on #{host} using #{shell.join(" ")} ..."
   end
     
   def listDirectories(baseDir)
@@ -173,6 +178,10 @@ class SshContentHost<DirContentHost
       puts " #{line}"
       yield line 
     end
+  end
+
+  def getScpPath(path)
+    return host + ":" + path
   end
 end
 
@@ -220,6 +229,10 @@ class CygwinLocalContentHost<DirContentHost
     puts "#{command.inspect} ..."
     return IO.popen([{"CYGWIN" => "nodosfilewarning"}] + command)
   end    
+  
+  def getScpPath(path)
+    return path
+  end
 end
 
 class FileContent
@@ -246,7 +259,7 @@ class FileContent
   end
   
   def fullPath
-    return parentPathElements.join("/")
+    return (parentPathElements + [name]).join("/")
   end
 end
 
@@ -443,8 +456,24 @@ class ContentLocation
     @cachedContentFile = cachedContentFile
   end
   
+  def scpCommandString
+    return host.scpCommandString
+  end
+  
+  def getFullPath(relativePath)
+    return baseDir + relativePath
+  end
+  
+  def getScpPath(relativePath)
+    return host.getScpPath(getFullPath(relativePath))
+  end
+  
   def ssh(commandString)
     host.ssh(commandString)
+  end
+  
+  def sshDry(commandString)
+    host.sshDry(commandString)
   end
   
   def listDirectories
@@ -500,6 +529,54 @@ class SyncOperation
     puts "After marking for sync --"
     @sourceContent.showIndented()
     @destinationContent.showIndented()
+  end
+  
+  def doAllCopyOperations
+    doCopyOperations(@sourceContent, @destinationContent)
+  end
+  
+  def doAllDeleteOperations
+    doDeleteOperations(@destinationContent)
+  end
+  
+  def executeCommand(command)
+    puts "EXECUTE: #{command}"
+  end
+  
+  def doCopyOperations(sourceContent, destinationContent)
+    for dir in sourceContent.dirs do
+      if dir.copyDestination != nil
+        sourcePath = sourceLocation.getScpPath(dir.fullPath)
+        destinationPath = destinationLocation.getScpPath(dir.copyDestination.fullPath)
+        executeCommand ("#{destinationLocation.scpCommandString} -r #{sourcePath} #{destinationPath}")
+      else
+        doCopyOperations(dir, destinationContent.getDir(dir.name))
+      end
+    end
+    for file in sourceContent.files do
+      if file.copyDestination != nil
+        sourcePath = sourceLocation.getScpPath(file.fullPath)
+        destinationPath = destinationLocation.getScpPath(file.copyDestination.fullPath)
+        executeCommand("#{destinationLocation.scpCommandString} #{sourcePath} #{destinationPath}")
+      end
+    end
+  end
+  
+  def doDeleteOperations(destinationContent)
+    for dir in destinationContent.dirs do
+      if dir.toBeDeleted
+        dirPath = destinationLocation.getFullPath(dir.fullPath)
+        destinationLocation.sshDry("rm -r #{dirPath}")
+      else
+        doDeleteOperations(dir)
+      end
+    end
+    for file in destinationContent.files do
+      if file.toBeDeleted
+        filePath = destinationLocation.getFullPath(file.fullPath)
+        destinationLocation.sshDry("rm #{filePath}")
+      end
+    end
   end
 end
 
