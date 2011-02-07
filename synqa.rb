@@ -283,14 +283,61 @@ class ContentTree
       puts "#{nextIndent}#{file.name}  - #{file.hash}"
     end
   end
+  
+  def writeLinesToFile(outFile, prefix = "")
+    for dir in dirs do
+      outFile.puts("D #{prefix}#{dir.name}\n")
+      dir.writeLinesToFile(outFile, "#{prefix}#{dir.name}/")
+    end
+    for file in files do
+      outFile.puts("F #{file.hash} #{prefix}#{file.name}\n")
+    end
+  end
+  
+  def writeToFile(fileName)
+    puts "Writing content tree to file #{fileName} ..."
+    outFile = File.open(fileName, "w")
+    writeLinesToFile(outFile)
+    outFile.close()
+    puts " content tree written to file #{fileName}"
+  end
+  
+  @@dirLineRegex = /^D (.*)$/
+  @@fileLineRegex = /^F ([^ ]*) (.*)$/
+  
+  def self.readFromFile(fileName, name = "")
+    puts "Reading content tree from file #{fileName} ..."
+    contentTree = ContentTree.new(name)
+    File.open(fileName).each_line do |line|
+      puts " line #{line}"
+      dirLineMatch = @@dirLineRegex.match(line)
+      if dirLineMatch
+        dirName = dirLineMatch[1]
+        puts " adding directory #{dirName} ..."
+        contentTree.addDir(dirName)
+      else
+        fileLineMatch = @@fileLineRegex.match(line)
+        if fileLineMatch
+          hash = fileLineMatch[1]
+          fileName = fileLineMatch[2]
+          puts " adding file hash #{fileName} #{hash} ..."
+          contentTree.addFile(fileName, hash)
+        else
+          raise "Invalid line in content tree file: #{line.inspect}"
+        end
+      end
+    end
+    return contentTree
+  end
 end
 
 class ContentLocation
-  attr_reader :host, :baseDir
+  attr_reader :host, :baseDir, :cachedContentFile
   
-  def initialize(host, baseDir)
+  def initialize(host, baseDir, cachedContentFile = nil)
     @host = host
     @baseDir = normalisedDir(baseDir)
+    @cachedContentFile = cachedContentFile
   end
   
   def listDirectories
@@ -306,7 +353,23 @@ class ContentLocation
   end
   
   def getContentTree
-    return host.getContentTree(baseDir)
+    contentTree = host.getContentTree(baseDir)
+    if cachedContentFile != nil
+      contentTree.writeToFile(cachedContentFile)
+    end
+    return contentTree
+  end
+  
+  def getCachedContentTree
+    if cachedContentFile == nil
+      puts "No cached content file specified for location"
+      return nil
+    elsif File.exists?(cachedContentFile)
+      return ContentTree.readFromFile(cachedContentFile, baseDir)
+    else
+      puts "Cached content file #{cachedContentFile} does not yet exist."
+      return nil
+    end
   end
   
 end
