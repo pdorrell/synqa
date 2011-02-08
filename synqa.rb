@@ -81,6 +81,7 @@ class DirContentHost
         raise "Directory #{line} is not a sub-directory of base directory #{baseDir}"
       end
     end
+    output.close()
     return directories
   end
   
@@ -141,6 +142,7 @@ class SshContentHost<DirContentHost
       while (line = output.gets)
         yield line.chomp
       end
+      output.close()
     end
   end
   
@@ -200,6 +202,7 @@ class CygwinLocalContentHost<DirContentHost
       hashLine = line.chomp
       puts "    #{hashLine}"
     end
+    output.close()
     return hashLine
   end
 
@@ -218,6 +221,7 @@ class CygwinLocalContentHost<DirContentHost
         raise "File #{filePath} is not contained within base directory #{baseDir}"
       end
     end
+    output.close()
   end
 
   def getCommandOutput(command)
@@ -305,6 +309,14 @@ class ContentTree
       pathStart = pathElements[0]
       restOfPath = pathElements[1..-1]
       getContentTreeForSubDir(pathStart).addDir(restOfPath)
+    end
+  end
+  
+  def sort!
+    dirs.sort_by! {|dir| dir.name}
+    files.sort_by! {|file| file.name}
+    for dir in dirs do
+      dir.sort!
     end
   end
   
@@ -481,6 +493,7 @@ class ContentLocation
   
   def getContentTree
     contentTree = host.getContentTree(baseDir)
+    contentTree.sort!
     if cachedContentFile != nil
       contentTree.writeToFile(cachedContentFile)
     end
