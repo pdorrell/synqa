@@ -134,24 +134,22 @@ class SshContentHost<DirContentHost
     return "#{host}:#{baseDir} (connect = #{shell}/#{scpProgram}, hashCommand = #{hashCommand})"
   end
   
-  def executeRemoteCommand(commandString)
-    output = getCommandOutput(shell + [host, commandString])
-    puts " executing #{commandString} on #{host} using #{shell.join(" ")} ..."
-    while (line = output.gets)
-      yield line.chomp
+  def executeRemoteCommand(commandString, dryRun = false)
+    puts "SSH #{host} (#{shell.join(" ")}): executing #{commandString}"
+    if not dryRun
+      output = getCommandOutput(shell + [host, commandString])
+      while (line = output.gets)
+        yield line.chomp
+      end
     end
   end
   
-  def ssh(commandString)
-    executeRemoteCommand(commandString) do |line|
+  def ssh(commandString, dryRun = false)
+    executeRemoteCommand(commandString, dryRun) do |line|
       puts line
     end
   end
   
-  def sshDry(commandString)
-    puts "EXECUTE #{commandString} on #{host} using #{shell.join(" ")} ..."
-  end
-    
   def listDirectories(baseDir)
     baseDir = normalisedDir(baseDir)
     puts "Listing directories ..."
@@ -465,12 +463,8 @@ class ContentLocation
     return host.getScpPath(getFullPath(relativePath))
   end
   
-  def ssh(commandString)
-    host.ssh(commandString)
-  end
-  
-  def sshDry(commandString)
-    host.sshDry(commandString)
+  def ssh(commandString, dryRun = false)
+    host.ssh(commandString, dryRun)
   end
   
   def listDirectories
@@ -528,50 +522,53 @@ class SyncOperation
     @destinationContent.showIndented()
   end
   
-  def doAllCopyOperations
-    doCopyOperations(@sourceContent, @destinationContent)
+  def doAllCopyOperations(options = {})
+    doCopyOperations(@sourceContent, @destinationContent, options[:dryRun])
   end
   
-  def doAllDeleteOperations
-    doDeleteOperations(@destinationContent)
+  def doAllDeleteOperations(options = {})
+    doDeleteOperations(@destinationContent, options[:dryRun])
   end
   
-  def executeCommand(command)
+  def executeCommand(command, dryRun)
     puts "EXECUTE: #{command}"
+    if not dryRun
+      system(command)
+    end
   end
   
-  def doCopyOperations(sourceContent, destinationContent)
+  def doCopyOperations(sourceContent, destinationContent, dryRun)
     for dir in sourceContent.dirs do
       if dir.copyDestination != nil
         sourcePath = sourceLocation.getScpPath(dir.fullPath)
         destinationPath = destinationLocation.getScpPath(dir.copyDestination.fullPath)
-        executeCommand ("#{destinationLocation.scpCommandString} -r #{sourcePath} #{destinationPath}")
+        executeCommand("#{destinationLocation.scpCommandString} -r #{sourcePath} #{destinationPath}", dryRun)
       else
-        doCopyOperations(dir, destinationContent.getDir(dir.name))
+        doCopyOperations(dir, destinationContent.getDir(dir.name), dryRun)
       end
     end
     for file in sourceContent.files do
       if file.copyDestination != nil
         sourcePath = sourceLocation.getScpPath(file.fullPath)
         destinationPath = destinationLocation.getScpPath(file.copyDestination.fullPath)
-        executeCommand("#{destinationLocation.scpCommandString} #{sourcePath} #{destinationPath}")
+        executeCommand("#{destinationLocation.scpCommandString} #{sourcePath} #{destinationPath}", dryRun)
       end
     end
   end
   
-  def doDeleteOperations(destinationContent)
+  def doDeleteOperations(destinationContent, dryRun)
     for dir in destinationContent.dirs do
       if dir.toBeDeleted
         dirPath = destinationLocation.getFullPath(dir.fullPath)
-        destinationLocation.sshDry("rm -r #{dirPath}")
+        destinationLocation.ssh("rm -r #{dirPath}", dryRun)
       else
-        doDeleteOperations(dir)
+        doDeleteOperations(dir, dryRun)
       end
     end
     for file in destinationContent.files do
       if file.toBeDeleted
         filePath = destinationLocation.getFullPath(file.fullPath)
-        destinationLocation.sshDry("rm #{filePath}")
+        destinationLocation.ssh("rm #{filePath}", dryRun)
       end
     end
   end
