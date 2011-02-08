@@ -27,9 +27,6 @@ class HashCommand
     fullPath = fileHashLine[(length + spacerLen)..-1]
     if fullPath.start_with?(baseDir)
       return RelativePathWithHash.new(fullPath[baseDir.length..-1], hash)
-    elsif fullPath == "-"
-      puts "Ignoring hash line for '-' file (caused by no files in directory)"
-      return nil
     else
       raise "File #{fullPath} from hash line is not in base dir #{baseDir}"
     end
@@ -173,7 +170,7 @@ class SshContentHost<DirContentHost
 
   def listFileHashLines(baseDir)
     baseDir = normalisedDir(baseDir)
-    remoteFileHashLinesCommand = findFilesCommand(baseDir) + ["|", "xargs"] + @hashCommand.command
+    remoteFileHashLinesCommand = findFilesCommand(baseDir) + ["|", "xargs", "-r"] + @hashCommand.command
     executeRemoteCommand(remoteFileHashLinesCommand.join(" ")) do |line| 
       puts " #{line}"
       yield line 
