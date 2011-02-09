@@ -454,6 +454,40 @@ class ContentTree
   end
 end
 
+class LocalContentLocation
+  attr_reader :baseDir, :hashClass
+  
+  def initialize(baseDir, hashClass)
+    @baseDir = normalisedDir(baseDir)
+    @baseDirLen = @baseDir.length
+    @hashClass = hashClass
+  end
+  
+  def getRelativePath(fileName)
+    if fileName.start_with? @baseDir
+      return fileName[@baseDirLen..-1]
+    else
+      raise "File name #{fileName} does not start with #{baseDir}"
+    end
+  end
+  
+  def getContentTree
+    contentTree = ContentTree.new()
+    #puts "LocalContentLocation.getContentTree for baseDir #{baseDir} ..."
+    for fileOrDir in Dir.glob(baseDir + "**/*")
+      relativePath = getRelativePath(fileOrDir)
+      #puts " #{relativePath}"
+      if File.directory? fileOrDir
+        contentTree.addDir(relativePath)
+      else
+        digest = hashClass.file(fileOrDir).hexdigest
+        contentTree.addFile(relativePath, digest)
+      end
+    end
+    return contentTree
+  end
+end
+
 class ContentLocation
   attr_reader :host, :baseDir, :cachedContentFile
   
