@@ -471,6 +471,14 @@ class LocalContentLocation
     end
   end
   
+  def getScpPath(relativePath)
+    return getFullPath(relativePath)
+  end
+
+  def getFullPath(relativePath)
+    return @baseDir + relativePath
+  end
+
   def getContentTree
     contentTree = ContentTree.new()
     #puts "LocalContentLocation.getContentTree for baseDir #{baseDir} ..."
