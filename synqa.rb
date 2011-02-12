@@ -539,6 +539,13 @@ class SyncOperation
     @destinationContent.showIndented()
   end
   
+  def doSync(options = {})
+    getContentTrees()
+    markSyncOperations()
+    doAllCopyOperations(options)
+    doAllDeleteOperations(options)
+  end
+  
   def doAllCopyOperations(options = {})
     doCopyOperations(@sourceContent, @destinationContent, options[:dryRun])
   end
