@@ -182,58 +182,6 @@ class SshContentHost<DirContentHost
   end
 end
 
-class CygwinLocalContentHost<DirContentHost
-  
-  def initialize(hashCommand, cygwinPath = "")
-    super(hashCommand, cygwinPath)
-  end
-  
-  def locationDescriptor(baseDir)
-    baseDir = normalisedDir(baseDir)
-    return "#{baseDir} (cygwinPath = #{pathPrefix.inspect}, hashCommand = #{hashCommand})"
-  end
-
-  def getFileHashLine(filePath)
-    command = hashCommand.command
-    output = getCommandOutput([pathPrefix + command[0]] + command[1..-1] + [filePath])
-    puts "  hash of #{filePath}"
-    hashLine = nil
-    while (line = output.gets)
-      hashLine = line.chomp
-      puts "    #{hashLine}"
-    end
-    output.close()
-    return hashLine
-  end
-
-  def listFileHashLines(baseDir)
-    baseDir = normalisedDir(baseDir)
-    output = getCommandOutput(findFilesCommand(baseDir))
-    baseDirLen = baseDir.length
-    puts "Listing files ..."
-    while (line = output.gets)
-      filePath = line.chomp
-      puts " #{filePath}"
-      if filePath.start_with?(baseDir)
-        relativePath = filePath[baseDirLen..-1]
-        yield getFileHashLine(filePath)
-      else
-        raise "File #{filePath} is not contained within base directory #{baseDir}"
-      end
-    end
-    output.close()
-  end
-
-  def getCommandOutput(command)
-    puts "#{command.inspect} ..."
-    return IO.popen([{"CYGWIN" => "nodosfilewarning"}] + command)
-  end    
-  
-  def getScpPath(path)
-    return path
-  end
-end
-
 class FileContent
   attr_reader :name, :hash, :parentPathElements, :copyDestination, :toBeDeleted
   
@@ -471,7 +419,6 @@ class ContentLocation
       return nil
     end
   end
-  
 end
 
 class LocalContentLocation<ContentLocation
@@ -643,4 +590,3 @@ class SyncOperation
     end
   end
 end
-
