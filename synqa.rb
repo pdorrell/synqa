@@ -381,9 +381,8 @@ class ContentTree
   @@dirLineRegex = /^D (.*)$/
   @@fileLineRegex = /^F ([^ ]*) (.*)$/
   
-  def self.readFromFile(fileName, name = "")
-    puts "Reading content tree from file #{fileName} ..."
-    contentTree = ContentTree.new(name)
+  def self.readFromFile(fileName)
+    contentTree = ContentTree.new()
     File.open(fileName).each_line do |line|
       puts " line #{line}"
       dirLineMatch = @@dirLineRegex.match(line)
@@ -496,7 +495,7 @@ class LocalContentLocation
   end
 end
 
-class ContentLocation
+class RemoteContentLocation
   attr_reader :host, :baseDir, :cachedContentFile
   
   def initialize(host, baseDir, cachedContentFile = nil)
@@ -543,11 +542,12 @@ class ContentLocation
   end
   
   def getCachedContentTree
+    puts "getCachedContentTree, cachedContentFile = #{cachedContentFile}"
     if cachedContentFile == nil
       puts "No cached content file specified for location"
       return nil
     elsif File.exists?(cachedContentFile)
-      return ContentTree.readFromFile(cachedContentFile, baseDir)
+      return ContentTree.readFromFile(cachedContentFile)
     else
       puts "Cached content file #{cachedContentFile} does not yet exist."
       return nil
