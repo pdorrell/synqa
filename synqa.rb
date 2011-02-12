@@ -123,11 +123,11 @@ module Synqa
     
     attr_reader :shell, :scpProgram, :host, :scpCommandString
     
-    def initialize(hashCommand, shell, scpProgram, host)
+    def initialize(host, hashCommand, shell, scpProgram)
       super(hashCommand)
+      @host = host
       @shell = shell.is_a?(String) ? [shell] : shell
       @scpProgram = scpProgram.is_a?(String) ? [scpProgram] : scpProgram
-      @host = host
       @scpCommandString = @scpProgram.join(" ")
     end
     
