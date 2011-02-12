@@ -453,10 +453,32 @@ class ContentTree
   end
 end
 
-class LocalContentLocation
+class ContentLocation
+  attr_reader :cachedContentFile
+  
+  def initialize(cachedContentFile)
+    @cachedContentFile = cachedContentFile
+  end
+
+  def getCachedContentTree
+    if cachedContentFile == nil
+      puts "No cached content file specified for location"
+      return nil
+    elsif File.exists?(cachedContentFile)
+      return ContentTree.readFromFile(cachedContentFile)
+    else
+      puts "Cached content file #{cachedContentFile} does not yet exist."
+      return nil
+    end
+  end
+  
+end
+
+class LocalContentLocation<ContentLocation
   attr_reader :baseDir, :hashClass
   
-  def initialize(baseDir, hashClass)
+  def initialize(baseDir, hashClass, cachedContentFile = nil)
+    super(cachedContentFile)
     @baseDir = normalisedDir(baseDir)
     @baseDirLen = @baseDir.length
     @hashClass = hashClass
@@ -481,27 +503,33 @@ class LocalContentLocation
   def getContentTree
     contentTree = ContentTree.new()
     #puts "LocalContentLocation.getContentTree for baseDir #{baseDir} ..."
-    for fileOrDir in Dir.glob(baseDir + "**/*")
-      relativePath = getRelativePath(fileOrDir)
-      #puts " #{relativePath}"
-      if File.directory? fileOrDir
-        contentTree.addDir(relativePath)
-      else
-        digest = hashClass.file(fileOrDir).hexdigest
-        contentTree.addFile(relativePath, digest)
+    for fileOrDir in Dir.glob(baseDir + "**/*", File::FNM_DOTMATCH)
+      if not (fileOrDir.end_with?("/.") or fileOrDir.end_with?("/.."))
+        relativePath = getRelativePath(fileOrDir)
+        #puts " #{relativePath}"
+        if File.directory? fileOrDir
+          contentTree.addDir(relativePath)
+        else
+          digest = hashClass.file(fileOrDir).hexdigest
+          contentTree.addFile(relativePath, digest)
+        end
       end
+    end
+    contentTree.sort!
+    if cachedContentFile != nil
+      contentTree.writeToFile(cachedContentFile)
     end
     return contentTree
   end
 end
 
-class RemoteContentLocation
-  attr_reader :host, :baseDir, :cachedContentFile
+class RemoteContentLocation<ContentLocation
+  attr_reader :host, :baseDir
   
   def initialize(host, baseDir, cachedContentFile = nil)
+    super(cachedContentFile)
     @host = host
     @baseDir = normalisedDir(baseDir)
-    @cachedContentFile = cachedContentFile
   end
   
   def scpCommandString
@@ -539,19 +567,6 @@ class RemoteContentLocation
       contentTree.writeToFile(cachedContentFile)
     end
     return contentTree
-  end
-  
-  def getCachedContentTree
-    puts "getCachedContentTree, cachedContentFile = #{cachedContentFile}"
-    if cachedContentFile == nil
-      puts "No cached content file specified for location"
-      return nil
-    elsif File.exists?(cachedContentFile)
-      return ContentTree.readFromFile(cachedContentFile)
-    else
-      puts "Cached content file #{cachedContentFile} does not yet exist."
-      return nil
-    end
   end
   
 end
