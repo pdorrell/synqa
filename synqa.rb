@@ -178,6 +178,13 @@ module Synqa
       end
     end
     
+    def listFiles(baseDir)
+      baseDir = normalisedDir(baseDir)
+      executeRemoteCommand(findFilesCommand(baseDir).join(" ")) do |line| 
+        puts " #{line}"
+      end
+    end
+    
     def getScpPath(path)
       return host + ":" + path
     end
@@ -478,6 +485,10 @@ module Synqa
       super(cachedContentFile)
       @host = host
       @baseDir = normalisedDir(baseDir)
+    end
+    
+    def listFiles()
+      host.listFiles(baseDir)
     end
     
     def scpCommandString
