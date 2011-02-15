@@ -109,6 +109,7 @@ module Synqa
     
     def getContentTree(baseDir)
       contentTree = ContentTree.new()
+      contentTree.time = Time.now.utc
       for dir in listDirectories(baseDir)
         contentTree.addDir(dir)
       end
@@ -221,6 +222,7 @@ module Synqa
   class ContentTree
     attr_reader :name, :pathElements, :files, :dirs, :fileByName, :dirByName
     attr_reader :copyDestination, :toBeDeleted
+    attr_accessor :time
     
     def initialize(name = nil, parentPathElements = nil)
       @name = name
@@ -231,6 +233,7 @@ module Synqa
       @dirByName = {}
       @copyDestination = nil
       @toBeDeleted = false
+      @time = nil
     end
     
     def markToCopy(destinationDirectory)
@@ -293,8 +296,15 @@ module Synqa
       end
     end
     
+    @@dateTimeFormat = "%Y-%m-%d %H:%M:%S.%L %z"
+    
     def showIndented(name = "", indent = "  ", currentIndent = "")
-      puts "#{currentIndent}#{name}"
+      if time != nil
+        puts "#{currentIndent}[TIME: #{time.strftime(@@dateTimeFormat)}]"
+      end
+      if name != ""
+        puts "#{currentIndent}#{name}"
+      end
       if copyDestination != nil
         puts "#{currentIndent} [COPY to #{copyDestination.fullPath}]"
       end
@@ -317,6 +327,9 @@ module Synqa
     end
     
     def writeLinesToFile(outFile, prefix = "")
+      if time != nil
+        outFile.puts("T #{time.strftime(@@dateTimeFormat)}\n")
+      end
       for dir in dirs do
         outFile.puts("D #{prefix}#{dir.name}\n")
         dir.writeLinesToFile(outFile, "#{prefix}#{dir.name}/")
@@ -336,6 +349,7 @@ module Synqa
     
     @@dirLineRegex = /^D (.*)$/
     @@fileLineRegex = /^F ([^ ]*) (.*)$/
+    @@timeRegex = /^T (.*)$/
     
     def self.readFromFile(fileName)
       contentTree = ContentTree.new()
@@ -354,7 +368,13 @@ module Synqa
             puts " adding file hash #{fileName} #{hash} ..."
             contentTree.addFile(fileName, hash)
           else
-            raise "Invalid line in content tree file: #{line.inspect}"
+            timeLineMatch = @@timeRegex.match(line)
+            if timeLineMatch
+              timeString = timeLineMatch[1]
+              contentTree.time = Time.strptime(timeString, @@dateTimeFormat)
+            else
+              raise "Invalid line in content tree file: #{line.inspect}"
+            end
           end
         end
       end
@@ -457,6 +477,7 @@ module Synqa
     
     def getContentTree
       contentTree = ContentTree.new()
+      contentTree.time = Time.now.utc
       #puts "LocalContentLocation.getContentTree for baseDir #{baseDir} ..."
       for fileOrDir in Dir.glob(baseDir + "**/*", File::FNM_DOTMATCH)
         if not (fileOrDir.end_with?("/.") or fileOrDir.end_with?("/.."))
@@ -547,7 +568,11 @@ module Synqa
       @sourceContent.markSyncOperationsForDestination(@destinationContent)
       puts " ================================================ "
       puts "After marking for sync --"
+      puts ""
+      puts "Local:"
       @sourceContent.showIndented()
+      puts ""
+      puts "Remote:"
       @destinationContent.showIndented()
     end
     
