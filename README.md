@@ -22,6 +22,11 @@ Dependencies of **synqa** are:
 
 For some sample code, see **synga-example.rb**.
 
+Licence
+-------
+
+Synqa is licensed under the GNU General Public License version 3.
+
 Notes and Issues
 ----------------
 
