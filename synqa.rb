@@ -1,3 +1,4 @@
+require 'time'
 
 module Synqa
   class RelativePathWithHash
@@ -344,7 +345,6 @@ module Synqa
       outFile = File.open(fileName, "w")
       writeLinesToFile(outFile)
       outFile.close()
-      puts " content tree written to file #{fileName}"
     end
     
     @@dirLineRegex = /^D (.*)$/
@@ -354,18 +354,18 @@ module Synqa
     def self.readFromFile(fileName)
       contentTree = ContentTree.new()
       File.open(fileName).each_line do |line|
-        puts " line #{line}"
+        #puts " line #{line}"
         dirLineMatch = @@dirLineRegex.match(line)
         if dirLineMatch
           dirName = dirLineMatch[1]
-          puts " adding directory #{dirName} ..."
+          #puts " adding directory #{dirName} ..."
           contentTree.addDir(dirName)
         else
           fileLineMatch = @@fileLineRegex.match(line)
           if fileLineMatch
             hash = fileLineMatch[1]
             fileName = fileLineMatch[2]
-            puts " adding file hash #{fileName} #{hash} ..."
+            #puts " adding file hash #{fileName} #{hash} ..."
             contentTree.addFile(fileName, hash)
           else
             timeLineMatch = @@timeRegex.match(line)
@@ -379,6 +379,25 @@ module Synqa
         end
       end
       return contentTree
+    end
+    
+    def self.readMapOfHashesFromFile(fileName)
+      mapOfHashes = {}
+      time = nil
+      File.open(fileName).each_line do |line|
+        fileLineMatch = @@fileLineRegex.match(line)
+          if fileLineMatch
+            hash = fileLineMatch[1]
+            fileName = fileLineMatch[2]
+            mapOfHashes[fileName] = hash
+          end
+        timeLineMatch = @@timeRegex.match(line)
+        if timeLineMatch
+          timeString = timeLineMatch[1]
+          time = Time.strptime(timeString, @@dateTimeFormat)
+        end
+      end
+      return [time, mapOfHashes]
     end
     
     def markSyncOperationsForDestination(destination)
@@ -436,17 +455,37 @@ module Synqa
       @cachedContentFile = cachedContentFile
     end
     
-    def getCachedContentTree
+    def getExistingCachedContentTreeFile
       if cachedContentFile == nil
         puts "No cached content file specified for location"
         return nil
       elsif File.exists?(cachedContentFile)
-        return ContentTree.readFromFile(cachedContentFile)
+        return cachedContentFile
       else
         puts "Cached content file #{cachedContentFile} does not yet exist."
         return nil
       end
     end
+    
+    def getCachedContentTree
+      file = getExistingCachedContentTreeFile
+      if file
+        return ContentTree.readFromFile(file)
+      else
+        return nil
+      end
+    end
+    
+    def getCachedContentTreeMapOfHashes
+      file = getExistingCachedContentTreeFile
+      if file
+        puts "Reading cached file hashes from #{file} ..."
+        return ContentTree.readMapOfHashesFromFile(file)
+      else
+        return [nil, {}]
+      end
+    end
+    
   end
   
   class LocalContentLocation<ContentLocation
@@ -476,6 +515,9 @@ module Synqa
     end
     
     def getContentTree
+      cachedTimeAndMapOfHashes = getCachedContentTreeMapOfHashes
+      cachedTime = cachedTimeAndMapOfHashes[0]
+      cachedMapOfHashes = cachedTimeAndMapOfHashes[1]
       contentTree = ContentTree.new()
       contentTree.time = Time.now.utc
       #puts "LocalContentLocation.getContentTree for baseDir #{baseDir} ..."
@@ -486,7 +528,12 @@ module Synqa
           if File.directory? fileOrDir
             contentTree.addDir(relativePath)
           else
-            digest = hashClass.file(fileOrDir).hexdigest
+            cachedDigest = cachedMapOfHashes[relativePath]
+            if cachedTime and cachedDigest and File.stat(fileOrDir).mtime < cachedTime
+              digest = cachedDigest
+            else
+              digest = hashClass.file(fileOrDir).hexdigest
+            end
             contentTree.addFile(relativePath, digest)
           end
         end
