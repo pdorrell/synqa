@@ -369,7 +369,7 @@ module Synqa
     def self.readFromFile(fileName)
       contentTree = ContentTree.new()
       puts "Reading content tree from #{fileName} ..."
-      File.open(fileName).each_line do |line|
+      IO.foreach(fileName) do |line|
         dirLineMatch = @@dirLineRegex.match(line)
         if dirLineMatch
           dirName = dirLineMatch[1]
