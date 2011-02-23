@@ -1,6 +1,18 @@
 require 'time'
 
 module Synqa
+
+  def checkProcessStatus(description)
+    processStatus = $?
+    if not processStatus.exited?
+      raise "#{description}: process did not exit normally"
+    end
+    exitStatus = processStatus.exitstatus
+    if exitStatus != 0
+      raise "#{description}: exit status = #{exitStatus}"
+    end
+  end
+    
   class RelativePathWithHash
     attr_reader :relativePath, :hash
     
@@ -70,7 +82,8 @@ module Synqa
     
     def listDirectories(baseDir)
       baseDir = normalisedDir(baseDir)
-      output = getCommandOutput(findDirectoriesCommand(baseDir))
+      command = findDirectoriesCommand(baseDir)
+      output = getCommandOutput(command)
       directories = []
       baseDirLen = baseDir.length
       puts "Listing directories ..."
@@ -84,6 +97,7 @@ module Synqa
         end
       end
       output.close()
+      checkProcessStatus(command)
       return directories
     end
     
@@ -146,6 +160,7 @@ module Synqa
           yield line.chomp
         end
         output.close()
+        checkProcessStatus("SSH #{host} #{commandString}")
       end
     end
     
@@ -642,6 +657,7 @@ module Synqa
       puts "EXECUTE: #{command}"
       if not dryRun
         system(command)
+        checkProcessStatus(command)
       end
     end
     
