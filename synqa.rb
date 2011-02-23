@@ -357,9 +357,9 @@ module Synqa
     
     def writeToFile(fileName)
       puts "Writing content tree to file #{fileName} ..."
-      outFile = File.open(fileName, "w")
-      writeLinesToFile(outFile)
-      outFile.close()
+      File.open(fileName, "w") do |outFile|
+        writeLinesToFile(outFile)
+      end
     end
     
     @@dirLineRegex = /^D (.*)$/
@@ -368,19 +368,17 @@ module Synqa
     
     def self.readFromFile(fileName)
       contentTree = ContentTree.new()
+      puts "Reading content tree from #{fileName} ..."
       File.open(fileName).each_line do |line|
-        #puts " line #{line}"
         dirLineMatch = @@dirLineRegex.match(line)
         if dirLineMatch
           dirName = dirLineMatch[1]
-          #puts " adding directory #{dirName} ..."
           contentTree.addDir(dirName)
         else
           fileLineMatch = @@fileLineRegex.match(line)
           if fileLineMatch
             hash = fileLineMatch[1]
             fileName = fileLineMatch[2]
-            #puts " adding file hash #{fileName} #{hash} ..."
             contentTree.addFile(fileName, hash)
           else
             timeLineMatch = @@timeRegex.match(line)
@@ -479,6 +477,13 @@ module Synqa
       else
         puts "Cached content file #{cachedContentFile} does not yet exist."
         return nil
+      end
+    end
+    
+    def clearCachedContentFile
+      if cachedContentFile and File.exists?(cachedContentFile)
+        puts " deleting cached content file #{cachedContentFile} ..."
+        File.delete(cachedContentFile)
       end
     end
     
@@ -603,12 +608,16 @@ module Synqa
     end
     
     def getContentTree
-      contentTree = host.getContentTree(baseDir)
-      contentTree.sort!
-      if cachedContentFile != nil
-        contentTree.writeToFile(cachedContentFile)
+      if cachedContentFile and File.exists?(cachedContentFile)
+        return ContentTree.readFromFile(cachedContentFile)
+      else
+        contentTree = host.getContentTree(baseDir)
+        contentTree.sort!
+        if cachedContentFile != nil
+          contentTree.writeToFile(cachedContentFile)
+        end
+        return contentTree
       end
-      return contentTree
     end
     
   end
@@ -638,19 +647,35 @@ module Synqa
       @destinationContent.showIndented()
     end
     
+    def clearCachedContentFiles
+      @sourceLocation.clearCachedContentFile()
+      @destinationLocation.clearCachedContentFile()
+    end
+    
     def doSync(options = {})
+      if options[:full]
+        clearCachedContentFiles()
+      end
       getContentTrees()
       markSyncOperations()
-      doAllCopyOperations(options)
-      doAllDeleteOperations(options)
+      dryRun = options[:dryRun]
+      if not dryRun
+        @destinationLocation.clearCachedContentFile()
+      end
+      doAllCopyOperations(dryRun)
+      doAllDeleteOperations(dryRun)
+      if (@destinationLocation.cachedContentFile and @sourceLocation.cachedContentFile and
+          File.exists?(@sourceLocation.cachedContentFile))
+        FileUtils::Verbose.cp(@sourceLocation.cachedContentFile, @destinationLocation.cachedContentFile)
+      end
     end
     
-    def doAllCopyOperations(options = {})
-      doCopyOperations(@sourceContent, @destinationContent, options[:dryRun])
+    def doAllCopyOperations(dryRun)
+      doCopyOperations(@sourceContent, @destinationContent, dryRun)
     end
     
-    def doAllDeleteOperations(options = {})
-      doDeleteOperations(@destinationContent, options[:dryRun])
+    def doAllDeleteOperations(dryRun)
+      doDeleteOperations(@destinationContent, dryRun)
     end
     
     def executeCommand(command, dryRun)
