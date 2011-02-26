@@ -511,11 +511,13 @@ module Synqa
   class LocalContentLocation<ContentLocation
     attr_reader :baseDir, :hashClass
     
-    def initialize(baseDir, hashClass, cachedContentFile = nil)
+    def initialize(baseDir, hashClass, cachedContentFile = nil, options = {})
       super(cachedContentFile)
       @baseDir = normalisedDir(baseDir)
       @baseDirLen = @baseDir.length
       @hashClass = hashClass
+      @excludeGlobs = options.fetch(:excludes, []).map {|x| @baseDir + x}
+      puts "@excludeGlobs = #{@excludeGlobs.inspect}"
     end
     
     def getRelativePath(fileName)
@@ -534,6 +536,17 @@ module Synqa
       return @baseDir + relativePath
     end
     
+    def fileIsExcluded(fileName)
+      puts "is file #{fileName} excluded?"
+      for excludeGlob in @excludeGlobs
+        if File.fnmatch(excludeGlob, fileName)
+          puts "   file #{fileName} EXCLUDED by glob #{excludeGlob}"
+          return true
+        end
+      end
+      return false
+    end
+    
     def getContentTree
       cachedTimeAndMapOfHashes = getCachedContentTreeMapOfHashes
       cachedTime = cachedTimeAndMapOfHashes[0]
@@ -548,13 +561,17 @@ module Synqa
           if File.directory? fileOrDir
             contentTree.addDir(relativePath)
           else
-            cachedDigest = cachedMapOfHashes[relativePath]
-            if cachedTime and cachedDigest and File.stat(fileOrDir).mtime < cachedTime
-              digest = cachedDigest
+            if not fileIsExcluded(fileOrDir)
+              cachedDigest = cachedMapOfHashes[relativePath]
+              if cachedTime and cachedDigest and File.stat(fileOrDir).mtime < cachedTime
+                digest = cachedDigest
+              else
+                digest = hashClass.file(fileOrDir).hexdigest
+              end
+              contentTree.addFile(relativePath, digest)
             else
-              digest = hashClass.file(fileOrDir).hexdigest
+              puts " excluding file #{relativePath}"
             end
-            contentTree.addFile(relativePath, digest)
           end
         end
       end
