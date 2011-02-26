@@ -516,8 +516,7 @@ module Synqa
       @baseDir = normalisedDir(baseDir)
       @baseDirLen = @baseDir.length
       @hashClass = hashClass
-      @excludeGlobs = options.fetch(:excludes, []).map {|x| @baseDir + x}
-      puts "@excludeGlobs = #{@excludeGlobs.inspect}"
+      @excludeGlobs = options.fetch(:excludes, [])
     end
     
     def getRelativePath(fileName)
@@ -536,11 +535,10 @@ module Synqa
       return @baseDir + relativePath
     end
     
-    def fileIsExcluded(fileName)
-      puts "is file #{fileName} excluded?"
+    def fileIsExcluded(relativeFile)
       for excludeGlob in @excludeGlobs
-        if File.fnmatch(excludeGlob, fileName)
-          puts "   file #{fileName} EXCLUDED by glob #{excludeGlob}"
+        if File.fnmatch(excludeGlob, relativeFile)
+          puts "   file #{relativeFile} excluded by glob #{excludeGlob}"
           return true
         end
       end
@@ -561,7 +559,7 @@ module Synqa
           if File.directory? fileOrDir
             contentTree.addDir(relativePath)
           else
-            if not fileIsExcluded(fileOrDir)
+            if not fileIsExcluded(relativePath)
               cachedDigest = cachedMapOfHashes[relativePath]
               if cachedTime and cachedDigest and File.stat(fileOrDir).mtime < cachedTime
                 digest = cachedDigest
@@ -569,8 +567,6 @@ module Synqa
                 digest = hashClass.file(fileOrDir).hexdigest
               end
               contentTree.addFile(relativePath, digest)
-            else
-              puts " excluding file #{relativePath}"
             end
           end
         end
