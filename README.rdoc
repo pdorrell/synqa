@@ -1,7 +1,4 @@
-Synqa
-=====
-
-by Philip Dorrell
+= synqa
 
 **Synqa** is a simple file syncing tool that works over SSH, and is designed
 primarily for maintaining static websites. It uses a hash function to
@@ -14,7 +11,7 @@ I wrote it for two main reasons:
 hosting provider, and the rsync error messages were not very informative.
 * It was an opportunity to learn about SSH and how to use SSH and SCP with Ruby.
 
-Dependencies of **synqa** are: 
+== Dependencies of **synqa** are: 
 
 * Ruby 1.9.2
 * An SSH client. I use **plink**.
@@ -22,13 +19,11 @@ Dependencies of **synqa** are:
 
 For some sample code, see **examples/synga-useage.rb** and **examples/sample-rakefile**.
 
-Licence
--------
+== Licence
 
 Synqa is licensed under the GNU General Public License version 3.
 
-Notes and Issues
-----------------
+== Notes and Issues
 
 * **Synqa** has not been tested (or even designed to work) with file names
 containing whitespace or non-ASCII characters. Typically this doesn't matter for
