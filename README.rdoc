@@ -8,7 +8,7 @@ is already identical to the source copy.
 I wrote it for two main reasons:
 
 * I couldn't get *rsync* to work on the combination of Cygwin and my
-hosting provider, and the rsync error messages were not very informative.
+  hosting provider, and the rsync error messages were not very informative.
 * It was an opportunity to learn about SSH and how to use SSH and SCP with Ruby.
 
 == Dependencies of *synqa* are: 
@@ -26,6 +26,6 @@ Synqa is licensed under the GNU General Public License version 3.
 == Notes and Issues
 
 * *Synqa* has not been tested (or even designed to work) with file names
-containing whitespace or non-ASCII characters. Typically this doesn't matter for
-many static websites, but it will reduce the tool's usefulness as a general purpose
-backup tool.
+  containing whitespace or non-ASCII characters. Typically this doesn't matter for
+  many static websites, but it will reduce the tool's usefulness as a general purpose
+  backup tool.
