@@ -13,7 +13,7 @@
 #   uploaddry - a "dry run" for upload, doesn't actually upload or delete files
 
 require 'rejinnirate-rake'
-require 'synqa.rb'
+require 'synqa'  # This assumes synqa is installed as a gem, otherwise require 'synqa.rb'
 require 'digest/sha2'
 
 STDOUT.sync = true
