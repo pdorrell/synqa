@@ -17,7 +17,7 @@ I wrote it for two main reasons:
 * An SSH client. I use *plink*.
 * An SCP client. I use *pscp*.
 
-For some sample code, see *examples/synga-useage.rb* and *examples/sample-rakefile*.
+For some sample code, see <b>examples/synga-useage.rb</b> and <b>examples/sample-rakefile</b>.
 
 == Licence
 
