@@ -20,7 +20,7 @@ Dependencies of **synqa** are:
 * An SSH client. I use **plink**.
 * An SCP client. I use **pscp**.
 
-For some sample code, see **synga-example.rb**.
+For some sample code, see **examples/synga-useage.rb** and **examples/sample-rakefile**.
 
 Licence
 -------
@@ -30,12 +30,7 @@ Synqa is licensed under the GNU General Public License version 3.
 Notes and Issues
 ----------------
 
-* Although functional, this project is work in progress, and in 
-particular there are some simple caching options which need to be added
-to make it practical to use for medium size sites.
 * **Synqa** has not been tested (or even designed to work) with file names
 containing whitespace or non-ASCII characters. Typically this doesn't matter for
 many static websites, but it will reduce the tool's usefulness as a general purpose
 backup tool.
-* There is not yet any error checking on invoking SSH or SCP clients (i.e. no
-exception is raised if a client process returns an error code).

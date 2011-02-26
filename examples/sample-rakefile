@@ -1,0 +1,63 @@
+
+# A redacted rakefile example using Synqa
+# In this example the source files are copied directly from ./src to
+# yourusername@yourhostname.example.com/home/username/public.
+# 
+# For a more complex static site, your rakefile might generate the site
+# into an output directory and upload from there.
+#
+# Tasks:
+#   clean - removes the cached content files
+#   upload - syncs local content with remote dir (i.e. uploads new/changed files 
+#            and deletes remote files that don't exist in the local dir
+#   uploaddry - a "dry run" for upload, doesn't actually upload or delete files
+
+require 'rejinnirate-rake'
+require 'synqa.rb'
+require 'digest/sha2'
+
+STDOUT.sync = true
+
+include Rejinnirate
+include Synqa
+
+BASE_DIR = File.dirname(__FILE__)
+
+SRC_DIR = File.join(BASE_DIR, "src")
+UPLOAD_DIR = SRC_DIR
+SYNQA_DIR = File.join(BASE_DIR, "output", "synqa")
+  
+task :default => [:upload] do |t|
+end
+
+REMOTE_HOST = SshContentHost.new("yourusername@yourhostname.example.com", 
+                                 Sha256Command.new(), "plink", "pscp")
+
+REMOTE_SITE = RemoteContentLocation.new(REMOTE_HOST, 
+                                        "/home/username/public", 
+                                        File.join(SYNQA_DIR, "nearlyContent.txt"))
+
+LOCAL_SITE = LocalContentLocation.new(UPLOAD_DIR, 
+                                      Digest::SHA256, 
+                                      File.join(SYNQA_DIR, "localContent.txt"), 
+                                      :excludes => ["*\\~", "**/*\\~"])
+
+task :init do |t|
+  ensureDirectoryExists(SYNQA_DIR)
+end
+
+task :clean => [:init] do |t|
+  SyncOperation.new(LOCAL_SITE, REMOTE_SITE).clearCachedContentFiles()
+end
+
+task :list do |t|
+  REMOTE_SITE.listFiles()
+end
+                                    
+task :uploaddry => [:init] do |t|
+  SyncOperation.new(LOCAL_SITE, REMOTE_SITE).doSync(:dryRun => true)
+end
+
+task :upload => [:init] do |t|
+  SyncOperation.new(LOCAL_SITE, REMOTE_SITE).doSync()
+end
