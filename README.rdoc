@@ -7,15 +7,15 @@ is already identical to the source copy.
 
 It is available as a Ruby gem.
 
-== Installation
-
-<code>gem install synqa</code>
-
-I wrote it for two main reasons:
+I wrote *synqa* for two main reasons:
 
 * I couldn't get *rsync* to work on the combination of Cygwin and my
   hosting provider, and the rsync error messages were not very informative.
 * It was an opportunity to learn about SSH and how to use SSH and SCP with Ruby.
+
+== Installation
+
+<code>gem install synqa</code>
 
 == Dependencies of *synqa* are: 
 
