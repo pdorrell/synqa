@@ -13,8 +13,8 @@ require 'jeweler'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
   gem.name = "synqa"
-  gem.homepage = "http://github.com/pdorrell/synqa"
-  gem.license = "MIT"
+  gem.homepage = "http://www.1729.com/software/synqa/"
+  gem.license = "GPLv3"
   gem.summary = %Q{Sync files from a local directory to a remote directory via SSH/SCP}
   gem.description = %Q{Sync files from a local directory to a remote directory via SSH/SCP}
   gem.email = "http://www.1729.com/email.html"
