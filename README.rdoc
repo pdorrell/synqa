@@ -5,6 +5,12 @@ primarily for maintaining static websites. It uses a hash function to
 determine which files don't need to be copied because the destination copy
 is already identical to the source copy.
 
+It is available as a Ruby gem.
+
+== Installation
+
+<code>gem install synqa</code>
+
 I wrote it for two main reasons:
 
 * I couldn't get *rsync* to work on the combination of Cygwin and my
