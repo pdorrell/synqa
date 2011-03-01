@@ -2,6 +2,7 @@ require 'time'
 
 module Synqa
 
+  # Check if the last executed process exited with status 0, if not, raise an exception
   def checkProcessStatus(description)
     processStatus = $?
     if not processStatus.exited?
@@ -13,8 +14,13 @@ module Synqa
     end
   end
     
+  # An object representing a file path relative to a base directory, and a hash string
   class RelativePathWithHash
-    attr_reader :relativePath, :hash
+    # The relative file path (e.g. c:/dir/subdir/file.txt relative to c:/dir would be subdir/file.txt)
+    attr_reader :relativePath
+    
+    # The hash code, e.g. a1c5b67fdb3cf0df8f1d29ae90561f9ad099bada44aeb6b2574ad9e15f2a84ed
+    attr_reader :hash
     
     def initialize(relativePath, hash)
       @relativePath = relativePath
@@ -25,17 +31,26 @@ module Synqa
       return "RelativePathWithHash[#{relativePath}, #{hash}]"
     end
   end
-  
+
+  # A command to be executed on the remote system which calculates a hash value for
+  # a file (of a given length), in the format: *hexadecimal-hash* *a-fixed-number-of-characters* *file-name*
   class HashCommand
+    # The command - a string or array of strings e.g. "sha256sum" or ["sha256", "-r"]
+    attr_reader :command 
+
+    # The length of the calculated hash value e.g. 64 for sha256
+    attr_reader :length
     
-    attr_reader :command, :length, :spacerLen
+    # The number of characters between the hash value and the file name (usually 1 or 2)
+    attr_reader :spacerLen
     
     def initialize(command, length, spacerLen)
       @command = command
       @length = length
       @spacerLen = spacerLen
     end
-    
+
+    # Parse a hash line relative to a base directory, returning a RelativePathWithHash
     def parseFileHashLine(baseDir, fileHashLine)
       hash = fileHashLine[0...length]
       fullPath = fileHashLine[(length + spacerLen)..-1]
@@ -51,35 +66,50 @@ module Synqa
     end
   end
   
+  # Hash command for sha256sum, which generates a 64 hexadecimal digit hash, and outputs two characters between
+  # the hash and the file name.
   class Sha256SumCommand<HashCommand
     def initialize
       super(["sha256sum"], 64, 2)
     end
   end
   
+  # Hash command for sha256, which generates a 64 hexadecimal digit hash, and outputs one character between
+  # the hash and the file name, and which requires a "-r" argument to put the hash value first.  
   class Sha256Command<HashCommand
     def initialize
       super(["sha256", "-r"], 64, 1)
     end
   end
   
+  # Put "/" at the end of a directory name if it is not already there.
   def normalisedDir(baseDir)
     return baseDir.end_with?("/") ? baseDir : baseDir + "/"
   end
   
+
+  # Base class for an object representing a remote system where the contents of a directory
+  # on the system are enumerated by one command to list all sub-directories and another command 
+  # to list all files in the directory and their hash values.
   class DirContentHost
     
-    attr_reader :hashCommand, :pathPrefix
+    # The HashCommand object used to calculate and parse hash values of files
+    attr_reader :hashCommand
+    
+    # Prefix required for *find* command (usually nothing, since it should be on the system path)
+    attr_reader :pathPrefix
     
     def initialize(hashCommand, pathPrefix = "")
       @hashCommand = hashCommand
       @pathPrefix = pathPrefix
     end
     
+    # Generate the *find* command which will list all the sub-directories of the base directory
     def findDirectoriesCommand(baseDir)
       return ["#{@pathPrefix}find", baseDir, "-type", "d", "-print"]
     end
     
+    # Return the list of sub-directories relative to the base directory
     def listDirectories(baseDir)
       baseDir = normalisedDir(baseDir)
       command = findDirectoriesCommand(baseDir)
@@ -101,10 +131,13 @@ module Synqa
       return directories
     end
     
+    # Generate the *find* command which will list all the files within the base directory
     def findFilesCommand(baseDir)
       return ["#{@pathPrefix}find", baseDir, "-type", "f", "-print"]
     end
-    
+
+    # List file hashes by executing the command to hash each file on the output of the
+    # *find* command which lists all files, and parse the output.
     def listFileHashes(baseDir)
       baseDir = normalisedDir(baseDir)
       fileHashes = []
@@ -117,11 +150,13 @@ module Synqa
       return fileHashes
     end
     
+    # Return the enumerated lines of the command's output
     def getCommandOutput(command)
       puts "#{command.inspect} ..."
       return IO.popen(command)
     end    
     
+    # Construct the ContentTree for the given base directory
     def getContentTree(baseDir)
       contentTree = ContentTree.new()
       contentTree.time = Time.now.utc
@@ -135,9 +170,20 @@ module Synqa
     end
   end
   
+  # Representation of a remote system accessible via SSH
   class SshContentHost<DirContentHost
     
-    attr_reader :shell, :scpProgram, :host, :scpCommandString
+    # The SSH client, e.g. ["ssh"] or ["plink","-pw","mysecretpassword"] (i.e. command + args as an array)
+    attr_reader :shell
+    
+    # The SCP client, e.g. ["scp"] or ["pscp","-pw","mysecretpassword"] (i.e. command + args as an array)
+    attr_reader :scpProgram
+    
+    # The remote host, e.g. "username@host.example.com"
+    attr_reader :host
+    
+    # The SCP command as a string
+    attr_reader :scpCommandString
     
     def initialize(host, hashCommand, shell, scpProgram)
       super(hashCommand)
@@ -147,11 +193,14 @@ module Synqa
       @scpCommandString = @scpProgram.join(" ")
     end
     
+    # Return readable description of base directory on remote system
     def locationDescriptor(baseDir)
       baseDir = normalisedDir(baseDir)
       return "#{host}:#{baseDir} (connect = #{shell}/#{scpProgram}, hashCommand = #{hashCommand})"
     end
     
+    # execute an SSH command on the remote system, yielding lines of output
+    # (or don't actually execute, if dryRun is true)
     def executeRemoteCommand(commandString, dryRun = false)
       puts "SSH #{host} (#{shell.join(" ")}): executing #{commandString}"
       if not dryRun
@@ -164,12 +213,15 @@ module Synqa
       end
     end
     
+    # execute an SSH command on the remote system, displaying output to stdout, 
+    # (or don't actually execute, if dryRun is true)
     def ssh(commandString, dryRun = false)
       executeRemoteCommand(commandString, dryRun) do |line|
         puts line
       end
     end
     
+    # Return a list of all subdirectories of the base directory (as paths relative to the base directory)
     def listDirectories(baseDir)
       baseDir = normalisedDir(baseDir)
       puts "Listing directories ..."
@@ -186,6 +238,8 @@ module Synqa
       return directories
     end
     
+    # Yield lines of output from the command to display hash values and file names
+    # of all files within the base directory
     def listFileHashLines(baseDir)
       baseDir = normalisedDir(baseDir)
       remoteFileHashLinesCommand = findFilesCommand(baseDir) + ["|", "xargs", "-r"] + @hashCommand.command
@@ -195,6 +249,7 @@ module Synqa
       end
     end
     
+    # List all files within the base directory to stdout
     def listFiles(baseDir)
       baseDir = normalisedDir(baseDir)
       executeRemoteCommand(findFilesCommand(baseDir).join(" ")) do |line| 
@@ -202,13 +257,30 @@ module Synqa
       end
     end
     
+    # Get the remote path of the directory or file on the host, in the format required by SCP
     def getScpPath(path)
       return host + ":" + path
     end
   end
   
+  # An object representing the content of a file within a ContentTree.
+  # The file may be marked for copying (if it's in a source ContentTree) 
+  # or for deletion (if it's in a destination ContentTree)
   class FileContent
-    attr_reader :name, :hash, :parentPathElements, :copyDestination, :toBeDeleted
+    # The name of the file
+    attr_reader :name
+    
+    # The hash value of the file's contents
+    attr_reader :hash
+    
+    # The components of the relative path where the file is found
+    attr_reader :parentPathElements
+    
+    # The destination to which the file should be copied
+    attr_reader :copyDestination
+    
+    # Should this file be deleted
+    attr_reader :toBeDeleted
     
     def initialize(name, hash, parentPathElements)
       @name = name
@@ -218,10 +290,12 @@ module Synqa
       @toBeDeleted = false
     end
     
+    # Mark this file to be copied to a destination directory (from a destination content tree)
     def markToCopy(destinationDirectory)
       @copyDestination = destinationDirectory
     end
     
+    # Mark this file to be deleted
     def markToDelete
       @toBeDeleted = true
     end
@@ -230,14 +304,43 @@ module Synqa
       return "#{name} (#{hash})"
     end
     
+    # The full (relative) name of this file in the content tree
     def fullPath
       return (parentPathElements + [name]).join("/")
     end
   end
   
+  # A "content tree" consisting of a description of the contents of files and
+  # sub-directories within a base directory. The file contents are described via
+  # cryptographic hash values.
+  # Each sub-directory within a content tree is also represented as a ContentTree.
   class ContentTree
-    attr_reader :name, :pathElements, :files, :dirs, :fileByName, :dirByName
-    attr_reader :copyDestination, :toBeDeleted
+    # name of the sub-directory within the containing directory (or nil if this is the base directory)
+    attr_reader :name
+    
+    # path elements from base directory leading to this one
+    attr_reader :pathElements
+    
+    # files within this sub-directory (as FileContent's)
+    attr_reader :files
+    
+    # immediate sub-directories of this directory
+    attr_reader :dirs
+    
+    # the files within this sub-directory, indexed by file name
+    attr_reader :fileByName
+    
+    # immediate sub-directories of this directory, indexed by name  
+    attr_reader :dirByName
+    
+    # where this directory should be copied to
+    attr_reader :copyDestination
+    
+    # whether this directory should be deleted
+    attr_reader :toBeDeleted
+    
+    # the UTC time (on the local system, even if this content tree represents a remote directory)
+    # that this content tree was constructed. Only set for the base directory.
     attr_accessor :time
     
     def initialize(name = nil, parentPathElements = nil)
@@ -252,22 +355,27 @@ module Synqa
       @time = nil
     end
     
+    # mark this directory to be copied to a destination directory
     def markToCopy(destinationDirectory)
       @copyDestination = destinationDirectory
     end
     
+    # mark this directory (on a remote system) to be deleted
     def markToDelete
       @toBeDeleted = true
     end
     
+    # the full path of the directory that this content tree represents (relative to the base directory)
     def fullPath
       return @pathElements.join("/")
     end
     
+    # convert a path string to an array of path elements (or return it as is if it's already an array)
     def getPathElements(path)
       return path.is_a?(String) ? (path == "" ? [] : path.split("/")) : path
     end
     
+    # get the content tree for a sub-directory (creating it if it doesn't yet exist)
     def getContentTreeForSubDir(subDir)
       dirContentTree = dirByName.fetch(subDir, nil)
       if dirContentTree == nil
@@ -278,6 +386,7 @@ module Synqa
       return dirContentTree
     end
     
+    # add a sub-directory to this content tree
     def addDir(dirPath)
       pathElements = getPathElements(dirPath)
       if pathElements.length > 0
@@ -287,6 +396,7 @@ module Synqa
       end
     end
     
+    # recursively sort the files and sub-directories of this content tree alphabetically
     def sort!
       dirs.sort_by! {|dir| dir.name}
       files.sort_by! {|file| file.name}
@@ -295,6 +405,7 @@ module Synqa
       end
     end
     
+    # given a relative path, add a file and hash value to this content tree
     def addFile(filePath, hash)
       pathElements = getPathElements(filePath)
       if pathElements.length == 0
@@ -312,8 +423,10 @@ module Synqa
       end
     end
     
+    # date-time format for reading and writing times, e.g. "2007-12-23 13:03:99.012 +0000"
     @@dateTimeFormat = "%Y-%m-%d %H:%M:%S.%L %z"
     
+    # pretty-print this content tree
     def showIndented(name = "", indent = "  ", currentIndent = "")
       if time != nil
         puts "#{currentIndent}[TIME: #{time.strftime(@@dateTimeFormat)}]"
@@ -341,7 +454,8 @@ module Synqa
         end
       end
     end
-    
+
+    # write this content tree to an open file, indented
     def writeLinesToFile(outFile, prefix = "")
       if time != nil
         outFile.puts("T #{time.strftime(@@dateTimeFormat)}\n")
@@ -355,6 +469,7 @@ module Synqa
       end
     end
     
+    # write this content tree to a file (in a format which readFromFile can read back in)
     def writeToFile(fileName)
       puts "Writing content tree to file #{fileName} ..."
       File.open(fileName, "w") do |outFile|
@@ -362,10 +477,16 @@ module Synqa
       end
     end
     
+    # regular expression for directory entries in content tree file
     @@dirLineRegex = /^D (.*)$/
+    
+    # regular expression for file entries in content tree file
     @@fileLineRegex = /^F ([^ ]*) (.*)$/
+    
+    # regular expression for time entry in content tree file
     @@timeRegex = /^T (.*)$/
     
+    # read a content tree from a file (in format written by writeToFile)
     def self.readFromFile(fileName)
       contentTree = ContentTree.new()
       puts "Reading content tree from #{fileName} ..."
@@ -393,7 +514,9 @@ module Synqa
       end
       return contentTree
     end
-    
+
+    # read a content tree as a map of hashes, i.e. from relative file path to hash value for the file
+    # Actually returns an array of the time entry (if any) and the map of hashes
     def self.readMapOfHashesFromFile(fileName)
       mapOfHashes = {}
       time = nil
@@ -413,19 +536,26 @@ module Synqa
       return [time, mapOfHashes]
     end
     
+    # Mark operations for this (source) content tree and the destination content tree
+    # in order to synch the destination content tree with this one
     def markSyncOperationsForDestination(destination)
       markCopyOperations(destination)
       destination.markDeleteOptions(self)
     end
     
+    # Get the named sub-directory content tree, if it exists
     def getDir(dir)
       return dirByName.fetch(dir, nil)
     end
     
+    # Get the named file & hash value, if it exists
     def getFile(file)
       return fileByName.fetch(file, nil)
     end
     
+    # Mark copy operations, given that the corresponding destination directory already exists.
+    # For files and directories that don't exist in the destination, mark them to be copied.
+    # For sub-directories that do exist, recursively mark the corresponding sub-directory copy operations.
     def markCopyOperations(destinationDir)
       for dir in dirs
         destinationSubDir = destinationDir.getDir(dir.name)
@@ -443,6 +573,9 @@ module Synqa
       end
     end
     
+    # Mark delete operations, given that the corresponding source directory exists.
+    # For files and directories that don't exist in the source, mark them to be deleted.
+    # For sub-directories that do exist, recursively mark the corresponding sub-directory delete operations.
     def markDeleteOptions(sourceDir)
       for dir in dirs
         sourceSubDir = sourceDir.getDir(dir.name)
@@ -461,13 +594,18 @@ module Synqa
     end
   end
   
+  # Base class for a content location which consists of a base directory
+  # on a local or remote system.
   class ContentLocation
+    
+    # The name of a file used to hold a cached content tree for this location (can optionally be specified)
     attr_reader :cachedContentFile
     
     def initialize(cachedContentFile)
       @cachedContentFile = cachedContentFile
     end
     
+    # Get the cached content file name, if specified, and if the file exists
     def getExistingCachedContentTreeFile
       if cachedContentFile == nil
         puts "No cached content file specified for location"
@@ -480,6 +618,7 @@ module Synqa
       end
     end
     
+    # Delete any existing cached content file
     def clearCachedContentFile
       if cachedContentFile and File.exists?(cachedContentFile)
         puts " deleting cached content file #{cachedContentFile} ..."
@@ -487,6 +626,7 @@ module Synqa
       end
     end
     
+    # Get the cached content tree (if any), read from the specified cached content file.
     def getCachedContentTree
       file = getExistingCachedContentTreeFile
       if file
@@ -496,6 +636,8 @@ module Synqa
       end
     end
     
+    # Read a map of file hashes (mapping from relative file name to hash value) from the
+    # specified cached content file
     def getCachedContentTreeMapOfHashes
       file = getExistingCachedContentTreeFile
       if file
@@ -508,8 +650,11 @@ module Synqa
     
   end
   
+  # A directory of files on a local system. The corresponding content tree
+  # can be calculated directly using Ruby library functions.
   class LocalContentLocation<ContentLocation
-    attr_reader :baseDir, :hashClass
+    attr_reader :baseDir
+    attr_reader :hashClass
     
     def initialize(baseDir, hashClass, cachedContentFile = nil, options = {})
       super(cachedContentFile)
