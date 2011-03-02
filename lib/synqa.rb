@@ -653,7 +653,10 @@ module Synqa
   # A directory of files on a local system. The corresponding content tree
   # can be calculated directly using Ruby library functions.
   class LocalContentLocation<ContentLocation
+    
+    # the base directory
     attr_reader :baseDir
+    # the ruby class that generates the hash, e.g. Digest::SHA256
     attr_reader :hashClass
     
     def initialize(baseDir, hashClass, cachedContentFile = nil, options = {})
@@ -664,6 +667,7 @@ module Synqa
       @excludeGlobs = options.fetch(:excludes, [])
     end
     
+    # get the path of a file name relative to the base directory
     def getRelativePath(fileName)
       if fileName.start_with? @baseDir
         return fileName[@baseDirLen..-1]
@@ -672,15 +676,18 @@ module Synqa
       end
     end
     
+    # get the path as required for an SCP command
     def getScpPath(relativePath)
       return getFullPath(relativePath)
     end
     
+    # get the full path of a relative path (i.e. of a file/directory within the base directory)
     def getFullPath(relativePath)
       return @baseDir + relativePath
     end
     
-    def fileIsExcluded(relativeFile)
+    # is the relative path name excluded by one of the specified exclusion globs?
+    def fileIsExcluded?(relativeFile)
       for excludeGlob in @excludeGlobs
         if File.fnmatch(excludeGlob, relativeFile)
           puts "   file #{relativeFile} excluded by glob #{excludeGlob}"
@@ -690,6 +697,12 @@ module Synqa
       return false
     end
     
+    # get the content tree for this base directory by iterating over all
+    # sub-directories and files within the base directory (and excluding the excluded files)
+    # and calculating file hashes using the specified Ruby hash class
+    # If there is an existing cached content file, use that to get the hash values
+    # of files whose modification time is earlier than the time value for the cached content tree.
+    # Also, if a cached content file is specified, write the final content tree back out to the cached content file.
     def getContentTree
       cachedTimeAndMapOfHashes = getCachedContentTreeMapOfHashes
       cachedTime = cachedTimeAndMapOfHashes[0]
@@ -704,7 +717,7 @@ module Synqa
           if File.directory? fileOrDir
             contentTree.addDir(relativePath)
           else
-            if not fileIsExcluded(relativePath)
+            if not fileIsExcluded?(relativePath)
               cachedDigest = cachedMapOfHashes[relativePath]
               if cachedTime and cachedDigest and File.stat(fileOrDir).mtime < cachedTime
                 digest = cachedDigest
@@ -724,8 +737,13 @@ module Synqa
     end
   end
   
+  # A directory of files on a remote system
   class RemoteContentLocation<ContentLocation
-    attr_reader :host, :baseDir
+    # the remote username@host value
+    attr_reader :host
+    
+    # the base directory on the remote system
+    attr_reader :baseDir
     
     def initialize(host, baseDir, cachedContentFile = nil)
       super(cachedContentFile)
@@ -733,30 +751,37 @@ module Synqa
       @baseDir = normalisedDir(baseDir)
     end
     
+    # list files within the base directory on the remote host
     def listFiles()
       host.listFiles(baseDir)
     end
     
+    # the command string required to execute SCP (e.g. "scp" or "pscp", possibly with extra args)
     def scpCommandString
       return host.scpCommandString
     end
     
+    # get the full path of a relative path
     def getFullPath(relativePath)
       return baseDir + relativePath
     end
     
+    # get the full path of a file as required in an SCP command (i.e. with username@host prepended)
     def getScpPath(relativePath)
       return host.getScpPath(getFullPath(relativePath))
     end
     
+    # execute an SSH command on the remote host (or just pretend, if dryRun is true)
     def ssh(commandString, dryRun = false)
       host.ssh(commandString, dryRun)
     end
     
+    # list all sub-directories of the base directory on the remote host
     def listDirectories
       return host.listDirectories(baseDir)
     end
     
+    # list all the file hashes of the files within the base directory
     def listFileHashes
       return host.listFileHashes(baseDir)
     end
@@ -764,7 +789,11 @@ module Synqa
     def to_s
       return host.locationDescriptor(baseDir)
     end
-    
+
+    # Get the content tree, from the cached content file if it exists, 
+    # otherwise get if from listing directories and files and hash values thereof
+    # on the remote host. And also, if the cached content file name is specified, 
+    # write the content tree out to that file.
     def getContentTree
       if cachedContentFile and File.exists?(cachedContentFile)
         return ContentTree.readFromFile(cachedContentFile)
@@ -780,19 +809,27 @@ module Synqa
     
   end
   
+  # The operation of synchronising files on the remote directory with files on the local directory.
   class SyncOperation
-    attr_reader :sourceLocation, :destinationLocation
+    # The source location (presumed to be local)
+    attr_reader :sourceLocation
+    
+    # The destination location (presumed to be remote)
+    attr_reader :destinationLocation
     
     def initialize(sourceLocation, destinationLocation)
       @sourceLocation = sourceLocation
       @destinationLocation = destinationLocation
     end
     
+    # Get the local and remote content trees
     def getContentTrees
       @sourceContent = @sourceLocation.getContentTree()
       @destinationContent = @destinationLocation.getContentTree()
     end
     
+    # On the local and remote content trees, mark the copy and delete operations required
+    # to sync the remote location to the local location.
     def markSyncOperations
       @sourceContent.markSyncOperationsForDestination(@destinationContent)
       puts " ================================================ "
@@ -805,11 +842,15 @@ module Synqa
       @destinationContent.showIndented()
     end
     
+    # Delete the local and remote cached content files (which will force a full recalculation
+    # of both content trees next time)
     def clearCachedContentFiles
       @sourceLocation.clearCachedContentFile()
       @destinationLocation.clearCachedContentFile()
     end
     
+    # Do the sync. Options: :full = true means clear the cached content files first, :dryRun
+    # means don't do the actual copies and deletes, but just show what they would be.
     def doSync(options = {})
       if options[:full]
         clearCachedContentFiles()
@@ -827,15 +868,19 @@ module Synqa
         FileUtils::Verbose.cp(@sourceLocation.cachedContentFile, @destinationLocation.cachedContentFile)
       end
     end
-    
+
+    # Do all the copy operations, copying local directories or files which are missing from the remote location
     def doAllCopyOperations(dryRun)
       doCopyOperations(@sourceContent, @destinationContent, dryRun)
     end
     
+    # Do all delete operations, deleting remote directories or files which do not exist at the local location
     def doAllDeleteOperations(dryRun)
       doDeleteOperations(@destinationContent, dryRun)
     end
     
+    # Execute a (local) command, or, if dryRun, just pretend to execute it.
+    # Raise an exception if the process exit status is not 0.
     def executeCommand(command, dryRun)
       puts "EXECUTE: #{command}"
       if not dryRun
@@ -844,6 +889,8 @@ module Synqa
       end
     end
     
+    # Recursively perform all marked copy operations from the source content tree to the
+    # destination content tree, or if dryRun, just pretend to perform them.
     def doCopyOperations(sourceContent, destinationContent, dryRun)
       for dir in sourceContent.dirs do
         if dir.copyDestination != nil
@@ -863,6 +910,8 @@ module Synqa
       end
     end
     
+    # Recursively perform all marked delete operations on the destination content tree, 
+    # or if dryRun, just pretend to perform them.
     def doDeleteOperations(destinationContent, dryRun)
       for dir in destinationContent.dirs do
         if dir.toBeDeleted
