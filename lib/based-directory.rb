@@ -13,11 +13,13 @@ module Based
         @dirs = []
         @files = []
         for entry in @entries do
-          fullEntryPath = fullPath + entry
-          if ::File.directory?(fullEntryPath)
-            @dirs << Directory(entry, self)
-          elsif ::File.file?(fullEntryPath)
-            @files << File(entry, self)
+          if entry != "." and entry != ".." 
+            fullEntryPath = fullPath + entry
+            if ::File.directory?(fullEntryPath)
+              @dirs << Directory(entry, self)
+            elsif ::File.file?(fullEntryPath)
+              @files << File(entry, self)
+            end
           end
         end
         @dirs.sort()
