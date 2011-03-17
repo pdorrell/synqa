@@ -5,6 +5,7 @@ module Based
     
     def initialize
       @entries = nil
+      @subDirs = nil
     end
     
     def getEntries
@@ -16,7 +17,7 @@ module Based
           if entry != "." and entry != ".." 
             fullEntryPath = fullPath + entry
             if ::File.directory?(fullEntryPath)
-              @dirs << Directory(entry, self)
+              @dirs << SubDirectory(entry, self)
             elsif ::File.file?(fullEntryPath)
               @files << File(entry, self)
             end
@@ -35,6 +36,26 @@ module Based
     def dirs
       getEntries()
       return @dirs
+    end
+    
+    def subDirs
+      for dir in dirs do
+        yield dir
+        for subDir in dir.subDirs
+          yield subDir
+        end
+      end
+    end
+    
+    def allFiles
+      for file in files do
+        yield file
+      end
+      for subDir in subDirs do
+        for file in subDir.files do
+          yield file
+        end
+      end
     end
   end
   
