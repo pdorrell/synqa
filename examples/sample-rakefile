@@ -1,33 +1,21 @@
-
-# A redacted rakefile example using Synqa
-# In this example the source files are copied directly from ./src to
-# yourusername@yourhostname.example.com/home/username/public.
-# 
-# For a more complex static site, your rakefile might generate the site
-# into an output directory and upload from there.
-#
-# Tasks:
-#   clean - removes the cached content files
-#   upload - syncs local content with remote dir (i.e. uploads new/changed files 
-#            and deletes remote files that don't exist in the local dir
-#   uploaddry - a "dry run" for upload, doesn't actually upload or delete files
-
-require 'rejinnirate-rake'
-require 'synqa'  # This assumes synqa is installed as a gem, otherwise require 'synqa.rb'
+require 'based-directory'
+require 'synqa'
 require 'digest/sha2'
 
 STDOUT.sync = true
 
-include Rejinnirate
 include Synqa
 
 BASE_DIR = File.dirname(__FILE__)
 
 SRC_DIR = File.join(BASE_DIR, "src")
-UPLOAD_DIR = SRC_DIR
+
+UPLOAD_DIR = Based::BaseDirectory.new(SRC_DIR, 
+                                      :fileExclude => lambda{|file| file.name.end_with?("~")})
+
 SYNQA_DIR = File.join(BASE_DIR, "output", "synqa")
   
-task :default => [:upload] do |t|
+task :default => [:uploaddry] do |t|
 end
 
 REMOTE_HOST = SshContentHost.new("yourusername@yourhostname.example.com", 
@@ -39,8 +27,7 @@ REMOTE_SITE = RemoteContentLocation.new(REMOTE_HOST,
 
 LOCAL_SITE = LocalContentLocation.new(UPLOAD_DIR, 
                                       Digest::SHA256, 
-                                      File.join(SYNQA_DIR, "localContent.txt"), 
-                                      :excludes => ["*\\~", "**/*\\~"])
+                                      File.join(SYNQA_DIR, "localContent.txt"))
 
 task :init do |t|
   ensureDirectoryExists(SYNQA_DIR)

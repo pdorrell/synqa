@@ -40,7 +40,7 @@ Rcov::RcovTask.new do |test|
   test.verbose = true
 end
 
-task :default => :rdoc
+task :default => :install
 
 require 'rake/rdoctask'
 Rake::RDocTask.new do |rdoc|

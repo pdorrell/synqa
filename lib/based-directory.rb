@@ -17,9 +17,19 @@ module Based
           if entry != "." and entry != ".." 
             fullEntryPath = fullPath + entry
             if ::File.directory?(fullEntryPath)
-              @dirs << SubDirectory.new(entry, self)
+              subDirectory = SubDirectory.new(entry, self)
+              if @base.dirInclude == nil or @base.dirInclude.call(subDirectory)
+                if @base.dirExclude == nil or not @base.dirExclude.call(subDirectory)
+                  @dirs << subDirectory
+                end
+              end
             elsif ::File.file?(fullEntryPath)
-              @files << File.new(entry, self)
+              file = File.new(entry, self)
+              if @base.fileInclude == nil or @base.fileInclude.call(file)
+                if @base.fileExclude == nil or not @base.fileExclude.call(file)
+                  @files << file
+                end
+              end
             end
           end
         end
@@ -71,7 +81,9 @@ module Based
   
   class BaseDirectory<Directory
     
-    def initialize(path)
+    attr_reader :fileInclude, :fileExclude, :dirInclude, :dirExclude
+    
+    def initialize(path, options = {})
       super()
       @name = nil
       @parent = nil
@@ -79,6 +91,10 @@ module Based
       @relativePath = ""
       @pathElements = []
       @fullPath = path.end_with?("/") ? path : path + "/"
+      @dirInclude = options.fetch(:dirInclude, nil)
+      @dirExclude = options.fetch(:dirExclude, nil)
+      @fileInclude = options.fetch(:fileInclude, nil)
+      @fileExclude = options.fetch(:fileExclude, nil)
     end
   end
   

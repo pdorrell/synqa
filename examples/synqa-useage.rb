@@ -1,6 +1,7 @@
 # Sample code for synqa useage -- you will need to fill in your own details
 
 require 'synqa.rb'
+require 'based-directory'
 require 'digest/sha2'
 
 STDOUT.sync = true
@@ -9,7 +10,7 @@ include Synqa
 sha256Sum = Sha256SumCommand.new()    # sha256sum (with 2 characters between hash and file name)
 sha256 = Sha256Command.new()          # sha256 -r (with 1 space between hash and file name)
 
-localContentLocation = LocalContentLocation.new("c:/dev/src/project", 
+localContentLocation = LocalContentLocation.new(Based::BaseDirectory.new("c:/dev/src/project"), 
                                                 Digest::SHA256, 
                                                 "c:/temp/synqa/local.project.content.cache.txt")
 

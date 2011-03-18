@@ -2,6 +2,17 @@ require 'time'
 
 module Synqa
 
+  # ensure that a directory exists
+  def ensureDirectoryExists(directoryName)
+    if File.exist? directoryName
+      if not File.directory? directoryName
+        raise "#{directoryName} is a non-directory file"
+      end
+    else
+      FileUtils.makedirs(directoryName)
+    end
+  end
+
   # Check if the last executed process exited with status 0, if not, raise an exception
   def checkProcessStatus(description)
     processStatus = $?
@@ -659,7 +670,7 @@ module Synqa
     # the ruby class that generates the hash, e.g. Digest::SHA256
     attr_reader :hashClass
     
-    def initialize(baseDirectory, hashClass, cachedContentFile = nil, options = {})
+    def initialize(baseDirectory, hashClass, cachedContentFile = nil)
       super(cachedContentFile)
       @baseDirectory = baseDirectory
       @hashClass = hashClass
