@@ -665,7 +665,8 @@ module Synqa
   # can be calculated directly using Ruby library functions.
   class LocalContentLocation<ContentLocation
     
-    # the base directory
+    # the base directory, for example of type Based::BaseDirectory. Methods invoked are: allFiles, subDirs and fullPath.
+    # For file and dir objects returned by allFiles & subDirs, methods invoked are: relativePath and fullPath
     attr_reader :baseDirectory
     # the ruby class that generates the hash, e.g. Digest::SHA256
     attr_reader :hashClass
