@@ -400,7 +400,7 @@ module Synqa
     def sort!
       dirs.sort_by! {|dir| dir.name}
       files.sort_by! {|file| file.name}
-      for dir in dirs do
+      for dir in dirs
         dir.sort!
       end
     end
@@ -441,10 +441,10 @@ module Synqa
         puts "#{currentIndent} [DELETE]"
       end
       nextIndent = currentIndent + indent
-      for dir in dirs do
+      for dir in dirs
         dir.showIndented("#{dir.name}/", indent = indent, currentIndent = nextIndent)
       end
-      for file in files do
+      for file in files
         puts "#{nextIndent}#{file.name}  - #{file.hash}"
         if file.copyDestination != nil
           puts "#{nextIndent} [COPY to #{file.copyDestination.fullPath}]"
@@ -460,11 +460,11 @@ module Synqa
       if time != nil
         outFile.puts("T #{time.strftime(@@dateTimeFormat)}\n")
       end
-      for dir in dirs do
+      for dir in dirs
         outFile.puts("D #{prefix}#{dir.name}\n")
         dir.writeLinesToFile(outFile, "#{prefix}#{dir.name}/")
       end
-      for file in files do
+      for file in files
         outFile.puts("F #{file.hash} #{prefix}#{file.name}\n")
       end
     end
@@ -655,25 +655,14 @@ module Synqa
   class LocalContentLocation<ContentLocation
     
     # the base directory
-    attr_reader :baseDir
+    attr_reader :baseDirectory
     # the ruby class that generates the hash, e.g. Digest::SHA256
     attr_reader :hashClass
     
-    def initialize(baseDir, hashClass, cachedContentFile = nil, options = {})
+    def initialize(baseDirectory, hashClass, cachedContentFile = nil, options = {})
       super(cachedContentFile)
-      @baseDir = normalisedDir(baseDir)
-      @baseDirLen = @baseDir.length
+      @baseDirectory = baseDirectory
       @hashClass = hashClass
-      @excludeGlobs = options.fetch(:excludes, [])
-    end
-    
-    # get the path of a file name relative to the base directory
-    def getRelativePath(fileName)
-      if fileName.start_with? @baseDir
-        return fileName[@baseDirLen..-1]
-      else
-        raise "File name #{fileName} does not start with #{baseDir}"
-      end
     end
     
     # get the path as required for an SCP command
@@ -683,18 +672,7 @@ module Synqa
     
     # get the full path of a relative path (i.e. of a file/directory within the base directory)
     def getFullPath(relativePath)
-      return @baseDir + relativePath
-    end
-    
-    # is the relative path name excluded by one of the specified exclusion globs?
-    def fileIsExcluded?(relativeFile)
-      for excludeGlob in @excludeGlobs
-        if File.fnmatch(excludeGlob, relativeFile)
-          puts "   file #{relativeFile} excluded by glob #{excludeGlob}"
-          return true
-        end
-      end
-      return false
+      return @baseDirectory.fullPath + relativePath
     end
     
     # get the content tree for this base directory by iterating over all
@@ -709,25 +687,17 @@ module Synqa
       cachedMapOfHashes = cachedTimeAndMapOfHashes[1]
       contentTree = ContentTree.new()
       contentTree.time = Time.now.utc
-      #puts "LocalContentLocation.getContentTree for baseDir #{baseDir} ..."
-      for fileOrDir in Dir.glob(baseDir + "**/*", File::FNM_DOTMATCH)
-        if not (fileOrDir.end_with?("/.") or fileOrDir.end_with?("/.."))
-          relativePath = getRelativePath(fileOrDir)
-          #puts " #{relativePath}"
-          if File.directory? fileOrDir
-            contentTree.addDir(relativePath)
-          else
-            if not fileIsExcluded?(relativePath)
-              cachedDigest = cachedMapOfHashes[relativePath]
-              if cachedTime and cachedDigest and File.stat(fileOrDir).mtime < cachedTime
-                digest = cachedDigest
-              else
-                digest = hashClass.file(fileOrDir).hexdigest
-              end
-              contentTree.addFile(relativePath, digest)
-            end
-          end
+      for subDir in @baseDirectory.subDirs
+        contentTree.addDir(subDir.relativePath)
+      end
+      for file in @baseDirectory.allFiles
+        cachedDigest = cachedMapOfHashes[file.relativePath]
+        if cachedTime and cachedDigest and File.stat(file.fullPath).mtime < cachedTime
+          digest = cachedDigest
+        else
+          digest = hashClass.file(file.fullPath).hexdigest
         end
+        contentTree.addFile(file.relativePath, digest)
       end
       contentTree.sort!
       if cachedContentFile != nil
@@ -892,7 +862,7 @@ module Synqa
     # Recursively perform all marked copy operations from the source content tree to the
     # destination content tree, or if dryRun, just pretend to perform them.
     def doCopyOperations(sourceContent, destinationContent, dryRun)
-      for dir in sourceContent.dirs do
+      for dir in sourceContent.dirs
         if dir.copyDestination != nil
           sourcePath = sourceLocation.getScpPath(dir.fullPath)
           destinationPath = destinationLocation.getScpPath(dir.copyDestination.fullPath)
@@ -901,7 +871,7 @@ module Synqa
           doCopyOperations(dir, destinationContent.getDir(dir.name), dryRun)
         end
       end
-      for file in sourceContent.files do
+      for file in sourceContent.files
         if file.copyDestination != nil
           sourcePath = sourceLocation.getScpPath(file.fullPath)
           destinationPath = destinationLocation.getScpPath(file.copyDestination.fullPath)
@@ -913,7 +883,7 @@ module Synqa
     # Recursively perform all marked delete operations on the destination content tree, 
     # or if dryRun, just pretend to perform them.
     def doDeleteOperations(destinationContent, dryRun)
-      for dir in destinationContent.dirs do
+      for dir in destinationContent.dirs
         if dir.toBeDeleted
           dirPath = destinationLocation.getFullPath(dir.fullPath)
           destinationLocation.ssh("rm -r #{dirPath}", dryRun)
@@ -921,7 +891,7 @@ module Synqa
           doDeleteOperations(dir, dryRun)
         end
       end
-      for file in destinationContent.files do
+      for file in destinationContent.files
         if file.toBeDeleted
           filePath = destinationLocation.getFullPath(file.fullPath)
           destinationLocation.ssh("rm #{filePath}", dryRun)

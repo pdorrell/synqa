@@ -13,18 +13,18 @@ module Based
         @entries = Dir.entries(fullPath)
         @dirs = []
         @files = []
-        for entry in @entries do
+        for entry in @entries
           if entry != "." and entry != ".." 
             fullEntryPath = fullPath + entry
             if ::File.directory?(fullEntryPath)
-              @dirs << SubDirectory(entry, self)
+              @dirs << SubDirectory.new(entry, self)
             elsif ::File.file?(fullEntryPath)
-              @files << File(entry, self)
+              @files << File.new(entry, self)
             end
           end
         end
-        @dirs.sort()
-        @files.sort()
+        @dirs.sort_by! {|dir| dir.name}
+        @files.sort_by! {|file| file.name}
       end
     end
     
@@ -39,23 +39,20 @@ module Based
     end
     
     def subDirs
-      for dir in dirs do
-        yield dir
-        for subDir in dir.subDirs
-          yield subDir
-        end
+      result = []
+      for dir in dirs
+        result << dir
+        result += dir.subDirs
       end
+      return result
     end
     
     def allFiles
-      for file in files do
-        yield file
+      result = files
+      for subDir in subDirs
+        result += subDir.files
       end
-      for subDir in subDirs do
-        for file in subDir.files do
-          yield file
-        end
-      end
+      return result
     end
   end
   
@@ -81,11 +78,13 @@ module Based
       @base = self
       @relativePath = ""
       @pathElements = []
-      @fullPath = path.end_with?("/") ? path[0..-1] : path
+      @fullPath = path.end_with?("/") ? path : path + "/"
     end
   end
   
   class File
+    attr_reader :name, :parent, :base, :relativePath, :pathElements, :fullPath
+    
     def initialize(name, parent)
       super()
       @name = name
