@@ -61,6 +61,17 @@ module Based
         relativePaths = @baseDir.dirs.map {|dir| dir.relativePath}
         assert_equal ["dir2/", "dir3/"], relativePaths
       end
+      
+      should "find all sub-directories of base directory" do
+        relativePaths = @baseDir.subDirs.map{|dir| dir.relativePath}
+        assert_equal ["dir2/", "dir2/dir4/", "dir3/"], relativePaths
+      end
+      
+      should "find all files within base directory" do
+        relativePaths = @baseDir.allFiles.map{|dir| dir.relativePath}
+        assert_equal ["file1.txt", "file2.txt", "dir2/file3.txt", "dir2/dir4/file5.text", 
+                      "dir3/file1.txt"], relativePaths
+      end
     end
   end
 end
