@@ -12,7 +12,7 @@ module Based
     context "A base directory" do
       setup do
         @baseDirPath = ::File.expand_path(::File.join(::File.dirname(__FILE__), "data", "dir1"))
-        puts "@baseDirPath = #{@baseDirPath}"
+        #puts "@baseDirPath = #{@baseDirPath}"
         @baseDir = BaseDirectory.new(@baseDirPath)
       end
       
@@ -21,6 +21,15 @@ module Based
         assert_equal ["file1.txt", "file2.txt"], names
         relativePaths = @baseDir.files.map {|file| file.relativePath}
         assert_equal ["file1.txt", "file2.txt"], relativePaths
+      end
+      
+      should "check attributes of basedir" do
+        assert_equal nil, @baseDir.name
+        assert_equal nil, @baseDir.parent
+        assert_equal @baseDir, @baseDir.base
+        assert_equal "", @baseDir.relativePath
+        assert_equal [], @baseDir.pathElements
+        assert_equal "#{@baseDirPath}/", @baseDir.fullPath
       end
       
       should "find one file and check all its attributes" do
