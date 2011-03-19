@@ -23,6 +23,18 @@ module Based
         assert_equal ["file1.txt", "file2.txt"], relativePaths
       end
       
+      should "find one file and check all its attributes" do
+        dir2 = @baseDir.dirs[0]
+        dir4 = dir2.dirs[0]
+        file5 = dir4.files[0]
+        assert_equal "file5.text", file5.name
+        assert_equal dir4, file5.parent
+        assert_equal @baseDir, file5.base
+        assert_equal "dir2/dir4/file5.text", file5.relativePath
+        assert_equal ["dir2", "dir4", "file5.text"], file5.pathElements
+        assert_equal "#{@baseDirPath}/dir2/dir4/file5.text", file5.fullPath
+      end
+      
       should "find sub-directories in top-level directory and get their names and relative paths" do
         names = @baseDir.dirs.map {|dir| dir.name}
         assert_equal ["dir2", "dir3"], names
