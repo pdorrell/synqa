@@ -32,6 +32,17 @@ module Based
         assert_equal "#{@baseDirPath}/", @baseDir.fullPath
       end
       
+      should "find one directory and check all its attributes" do
+        dir2 = @baseDir.dirs[0]
+        dir4 = dir2.dirs[0]
+        assert_equal "dir4", dir4.name
+        assert_equal dir2, dir4.parent
+        assert_equal @baseDir, dir4.base
+        assert_equal "dir2/dir4/", dir4.relativePath
+        assert_equal ["dir2", "dir4"], dir4.pathElements
+        assert_equal "#{@baseDirPath}/dir2/dir4/", dir4.fullPath
+      end
+      
       should "find one file and check all its attributes" do
         dir2 = @baseDir.dirs[0]
         dir4 = dir2.dirs[0]
