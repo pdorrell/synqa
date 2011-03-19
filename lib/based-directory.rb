@@ -33,10 +33,8 @@ module Based
             fullEntryPath = fullPath + entry
             if ::File.directory?(fullEntryPath)
               subDirectory = SubDirectory.new(entry, self)
-              if @base.dirInclude == nil or @base.dirInclude.call(subDirectory)
-                if @base.dirExclude == nil or not @base.dirExclude.call(subDirectory)
-                  @dirs << subDirectory
-                end
+              if @base.dirExclude == nil or not @base.dirExclude.call(subDirectory)
+                @dirs << subDirectory
               end
             elsif ::File.file?(fullEntryPath)
               file = File.new(entry, self)
@@ -98,7 +96,6 @@ module Based
     
     attr_reader :fileInclude
     attr_reader :fileExclude
-    attr_reader :dirInclude
     attr_reader :dirExclude
     
     def initialize(path, options = {})
@@ -109,7 +106,6 @@ module Based
       @relativePath = ""
       @pathElements = []
       @fullPath = path.end_with?("/") ? path : path + "/"
-      @dirInclude = options.fetch(:dirInclude, nil)
       @dirExclude = options.fetch(:dirExclude, nil)
       @fileInclude = options.fetch(:fileInclude, nil)
       @fileExclude = options.fetch(:fileExclude, nil)
