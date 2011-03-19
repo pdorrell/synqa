@@ -1,7 +1,22 @@
+# The Based module supports the concept of a "based" directory. Typically in modern software development, 
+# a project is represented by a set of sub-directories and files within a base directory. The exact location
+# of the base directory is not so important (i.e. it's wherever you checked it out of source control). For a given
+# file or sub-directory, one is often more interested in the path relative to the base directory, rather than 
+# the absolute path. (But you still need the full path when performing an actual file operation on the file
+# or directory.)
+# Also, there might be files and directories that you wish to ignore. Based supports simple functional includes and
+# excludes. (A bit less succint than include/exclude globs, but probably more flexible.)
+
 module Based
   
+  # A base class for directories: i.e. either the base directory itself, or a sub-directory
   class Directory
-    attr_reader :base, :relativePath, :pathElements, :name, :parent, :fullPath
+    attr_reader :base
+    attr_reader :relativePath
+    attr_reader :pathElements
+    attr_reader :name
+    attr_reader :parent
+    attr_reader :fullPath
     
     def initialize
       @entries = nil
@@ -81,7 +96,10 @@ module Based
   
   class BaseDirectory<Directory
     
-    attr_reader :fileInclude, :fileExclude, :dirInclude, :dirExclude
+    attr_reader :fileInclude
+    attr_reader :fileExclude
+    attr_reader :dirInclude
+    attr_reader :dirExclude
     
     def initialize(path, options = {})
       super()
@@ -99,7 +117,12 @@ module Based
   end
   
   class File
-    attr_reader :name, :parent, :base, :relativePath, :pathElements, :fullPath
+    attr_reader :name
+    attr_reader :parent
+    attr_reader :base
+    attr_reader :relativePath
+    attr_reader :pathElements
+    attr_reader :fullPath
     
     def initialize(name, parent)
       super()
