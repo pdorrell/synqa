@@ -1,6 +1,6 @@
 require 'helper'
 
-require 'based-directory'
+require 'based'
 
 module Based
   

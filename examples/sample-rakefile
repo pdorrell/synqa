@@ -1,4 +1,4 @@
-require 'based-directory'
+require 'based'
 require 'synqa'
 require 'digest/sha2'
 

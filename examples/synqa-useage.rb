@@ -1,7 +1,7 @@
 # Sample code for synqa useage -- you will need to fill in your own details
 
 require 'synqa.rb'
-require 'based-directory'
+require 'based'
 require 'digest/sha2'
 
 STDOUT.sync = true
