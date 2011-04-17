@@ -207,75 +207,75 @@ module Synqa
       @scpCommandString = @scpProgram.join(" ")
     end
     
-    def ssh(host, commandString, dryRun)
-      puts "SSH #{host} (#{shell.join(" ")}): executing #{commandString}"
+    def ssh(userAtHost, commandString, dryRun)
+      puts "SSH #{userAtHost} (#{shell.join(" ")}): executing #{commandString}"
       if not dryRun
-        output = getCommandOutput(shell + [host, commandString])
+        output = getCommandOutput(shell + [userAtHost, commandString])
         while (line = output.gets)
           yield line.chomp
         end
         output.close()
-        checkProcessStatus("SSH #{host} #{commandString}")
+        checkProcessStatus("SSH #{userAtHost} #{commandString}")
       end
     end
     
-    def copyLocalToRemoteDirectory(host, sourcePath, destinationPath, dryRun)
-      executeCommand("#{@scpCommandString} -r #{sourcePath} #{host}:#{destinationPath}", dryRun)
+    def copyLocalToRemoteDirectory(userAtHost, sourcePath, destinationPath, dryRun)
+      executeCommand("#{@scpCommandString} -r #{sourcePath} #{userAtHost}:#{destinationPath}", dryRun)
     end
     
-    def copyLocalFileToRemoteFile(host, sourcePath, destinationPath, dryRun)
-      executeCommand("#{@scpCommandString} #{sourcePath} #{host}:#{destinationPath}", dryRun)
+    def copyLocalFileToRemoteFile(userAtHost, sourcePath, destinationPath, dryRun)
+      executeCommand("#{@scpCommandString} #{sourcePath} #{userAtHost}:#{destinationPath}", dryRun)
     end
     
-    def deleteDirectory(host, dirPath, dryRun)
-      ssh(host, "rm -r #{dirPath}", dryRun)
+    def deleteDirectory(userAtHost, dirPath, dryRun)
+      ssh(userAtHost, "rm -r #{dirPath}", dryRun)
     end
 
-    def deleteFile(host, filePath, dryRun)
-      ssh(host, "rm #{filePath}", dryRun)
+    def deleteFile(userAtHost, filePath, dryRun)
+      ssh(userAtHost, "rm #{filePath}", dryRun)
     end
   end
   
   # Representation of a remote system accessible via SSH
   class SshContentHost<DirContentHost
     
-    # The remote host, e.g. "username@host.example.com"
-    attr_reader :host, :sshAndScp
+    # The remote userAtHost, e.g. "username@host.example.com"
+    attr_reader :userAtHost, :sshAndScp
     
-    def initialize(host, hashCommand, sshAndScp)
+    def initialize(userAtHost, hashCommand, sshAndScp)
       super(hashCommand)
       @sshAndScp = sshAndScp
-      @host = host
+      @userAtHost = userAtHost
     end
     
     # Return readable description of base directory on remote system
     def locationDescriptor(baseDir)
       baseDir = normalisedDir(baseDir)
-      return "#{host}:#{baseDir} (connect = #{shell}/#{scpProgram}, hashCommand = #{hashCommand})"
+      return "#{userAtHost}:#{baseDir} (connect = #{shell}/#{scpProgram}, hashCommand = #{hashCommand})"
     end
     
     # execute an SSH command on the remote system, yielding lines of output
     # (or don't actually execute, if dryRun is true)
     def ssh(commandString, dryRun = false)
-      sshAndScp.ssh(host, commandString, dryRun) do |line|
+      sshAndScp.ssh(userAtHost, commandString, dryRun) do |line|
         yield line
       end
     end
     
     def deleteDirectory(dirPath, dryRun)
-      sshAndScp.deleteDirectory(host, dirPath, dryRun)
+      sshAndScp.deleteDirectory(userAtHost, dirPath, dryRun)
     end
     
     def deleteFile(filePath, dryRun)
-      sshAndScp.deleteFile(host, filePath, dryRun)
+      sshAndScp.deleteFile(userAtHost, filePath, dryRun)
     end
     
     def copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
-      sshAndScp.copyLocalToRemoteDirectory(host, sourcePath, destinationPath, dryRun)
+      sshAndScp.copyLocalToRemoteDirectory(userAtHost, sourcePath, destinationPath, dryRun)
     end
     
     def copyLocalFileToRemoteFile(sourcePath, destinationPath, dryRun)
-      sshAndScp.copyLocalFileToRemoteFile(host, sourcePath, destinationPath, dryRun)
+      sshAndScp.copyLocalFileToRemoteFile(userAtHost, sourcePath, destinationPath, dryRun)
     end
     
     # Return a list of all subdirectories of the base directory (as paths relative to the base directory)
@@ -759,25 +759,25 @@ module Synqa
   # A directory of files on a remote system
   class RemoteContentLocation<ContentLocation
     # the remote username@host value
-    attr_reader :host
+    attr_reader :userAtHost
     
     # the base directory on the remote system
     attr_reader :baseDir
     
-    def initialize(host, baseDir, cachedContentFile = nil)
+    def initialize(userAtHost, baseDir, cachedContentFile = nil)
       super(cachedContentFile)
-      @host = host
+      @userAtHost = userAtHost
       @baseDir = normalisedDir(baseDir)
     end
     
-    # list files within the base directory on the remote host
+    # list files within the base directory on the remote userAtHost
     def listFiles()
-      host.listFiles(baseDir)
+      userAtHost.listFiles(baseDir)
     end
     
     # object required to execute SCP (e.g. "scp" or "pscp", possibly with extra args)
     def sshAndScp
-      return host.sshAndScp
+      return userAtHost.sshAndScp
     end
     
     # get the full path of a relative path
@@ -787,21 +787,21 @@ module Synqa
     
     # execute an SSH command on the remote host (or just pretend, if dryRun is true)
     def ssh(commandString, dryRun = false)
-      host.sshAndScp.ssh(commandString, dryRun)
+      userAtHost.sshAndScp.ssh(commandString, dryRun)
     end
     
     # list all sub-directories of the base directory on the remote host
     def listDirectories
-      return host.listDirectories(baseDir)
+      return userAtHost.listDirectories(baseDir)
     end
     
     # list all the file hashes of the files within the base directory
     def listFileHashes
-      return host.listFileHashes(baseDir)
+      return userAtHost.listFileHashes(baseDir)
     end
     
     def to_s
-      return host.locationDescriptor(baseDir)
+      return userAtHost.locationDescriptor(baseDir)
     end
 
     # Get the content tree, from the cached content file if it exists, 
@@ -812,7 +812,7 @@ module Synqa
       if cachedContentFile and File.exists?(cachedContentFile)
         return ContentTree.readFromFile(cachedContentFile)
       else
-        contentTree = host.getContentTree(baseDir)
+        contentTree = userAtHost.getContentTree(baseDir)
         contentTree.sort!
         if cachedContentFile != nil
           contentTree.writeToFile(cachedContentFile)
@@ -910,7 +910,7 @@ module Synqa
         if dir.copyDestination != nil
           sourcePath = sourceLocation.getFullPath(dir.relativePath)
           destinationPath = destinationLocation.getFullPath(dir.copyDestination.relativePath)
-          destinationLocation.host.copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
+          destinationLocation.userAtHost.copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
         else
           doCopyOperations(dir, destinationContent.getDir(dir.name), dryRun)
         end
@@ -919,7 +919,7 @@ module Synqa
         if file.copyDestination != nil
           sourcePath = sourceLocation.getFullPath(file.relativePath)
           destinationPath = destinationLocation.getFullPath(file.copyDestination.relativePath)
-          destinationLocation.host.copyLocalFileToRemoteFile(sourcePath, destinationPath, dryRun)
+          destinationLocation.userAtHost.copyLocalFileToRemoteFile(sourcePath, destinationPath, dryRun)
         end
       end
     end
@@ -930,7 +930,7 @@ module Synqa
       for dir in destinationContent.dirs
         if dir.toBeDeleted
           dirPath = destinationLocation.getFullPath(dir.relativePath)
-          destinationLocation.host.deleteDirectory(dirPath, dryRun)
+          destinationLocation.userAtHost.deleteDirectory(dirPath, dryRun)
         else
           doDeleteOperations(dir, dryRun)
         end
@@ -938,7 +938,7 @@ module Synqa
       for file in destinationContent.files
         if file.toBeDeleted
           filePath = destinationLocation.getFullPath(file.relativePath)
-          destinationLocation.host.deleteFile(filePath, dryRun)
+          destinationLocation.userAtHost.deleteFile(filePath, dryRun)
         end
       end
     end
