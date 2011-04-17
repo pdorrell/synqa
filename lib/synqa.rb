@@ -1,4 +1,5 @@
 require 'time'
+require 'net/ssh'
 
 module Synqa
 
@@ -190,8 +191,36 @@ module Synqa
       checkProcessStatus(command)
     end
   end
-    
-  class ExternalSshScp
+  
+  class BaseSshScp
+    def deleteDirectory(userAtHost, dirPath, dryRun)
+      ssh(userAtHost, "rm -r #{dirPath}", dryRun)
+    end
+
+    def deleteFile(userAtHost, filePath, dryRun)
+      ssh(userAtHost, "rm #{filePath}", dryRun)
+    end
+  end
+  
+  class InternalSshScp<BaseSshScp
+    def ssh(userAtHost, commandString, dryRun)
+      user, host = userAtHost.split("@")
+      description = "SSH #{user}@#{host}: executing #{commandString}"
+      puts description
+      if not dryRun
+        Net::SSH.start(host, user) do |ssh|
+          outputText = ssh.exec!(commandString)
+          if outputText != nil then
+            for line in outputText.split("\n") do
+              yield line
+            end
+          end
+        end
+      end
+    end
+  end
+  
+  class ExternalSshScp<BaseSshScp
     # The SSH client, e.g. ["ssh"] or ["plink","-pw","mysecretpassword"] (i.e. command + args as an array)
     attr_reader :shell
     
@@ -227,13 +256,6 @@ module Synqa
       executeCommand("#{@scpCommandString} #{sourcePath} #{userAtHost}:#{destinationPath}", dryRun)
     end
     
-    def deleteDirectory(userAtHost, dirPath, dryRun)
-      ssh(userAtHost, "rm -r #{dirPath}", dryRun)
-    end
-
-    def deleteFile(userAtHost, filePath, dryRun)
-      ssh(userAtHost, "rm #{filePath}", dryRun)
-    end
   end
   
   # Representation of a remote system accessible via SSH
@@ -242,9 +264,9 @@ module Synqa
     # The remote userAtHost, e.g. "username@host.example.com"
     attr_reader :userAtHost, :sshAndScp
     
-    def initialize(userAtHost, hashCommand, sshAndScp)
+    def initialize(userAtHost, hashCommand, sshAndScp = nil)
       super(hashCommand)
-      @sshAndScp = sshAndScp
+      @sshAndScp = sshAndScp != nil ?  sshAndScp : InternalSshScp.new()
       @userAtHost = userAtHost
     end
     
