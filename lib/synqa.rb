@@ -357,8 +357,8 @@ module Synqa
       return "#{name} (#{hash})"
     end
     
-    # The full (relative) name of this file in the content tree
-    def fullPath
+    # The relative name of this file in the content tree (relative to the base dir)
+    def relativePath
       return (parentPathElements + [name]).join("/")
     end
   end
@@ -418,8 +418,8 @@ module Synqa
       @toBeDeleted = true
     end
     
-    # the full path of the directory that this content tree represents (relative to the base directory)
-    def fullPath
+    # the path of the directory that this content tree represents, relative to the base directory
+    def relativePath
       return @pathElements.join("/")
     end
     
@@ -488,7 +488,7 @@ module Synqa
         puts "#{currentIndent}#{name}"
       end
       if copyDestination != nil
-        puts "#{currentIndent} [COPY to #{copyDestination.fullPath}]"
+        puts "#{currentIndent} [COPY to #{copyDestination.relativePath}]"
       end
       if toBeDeleted
         puts "#{currentIndent} [DELETE]"
@@ -500,7 +500,7 @@ module Synqa
       for file in files
         puts "#{nextIndent}#{file.name}  - #{file.hash}"
         if file.copyDestination != nil
-          puts "#{nextIndent} [COPY to #{file.copyDestination.fullPath}]"
+          puts "#{nextIndent} [COPY to #{file.copyDestination.relativePath}]"
         end
         if file.toBeDeleted
           puts "#{nextIndent} [DELETE]"
@@ -908,8 +908,8 @@ module Synqa
     def doCopyOperations(sourceContent, destinationContent, dryRun)
       for dir in sourceContent.dirs
         if dir.copyDestination != nil
-          sourcePath = sourceLocation.getFullPath(dir.fullPath)
-          destinationPath = destinationLocation.getFullPath(dir.copyDestination.fullPath)
+          sourcePath = sourceLocation.getFullPath(dir.relativePath)
+          destinationPath = destinationLocation.getFullPath(dir.copyDestination.relativePath)
           destinationLocation.host.copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
         else
           doCopyOperations(dir, destinationContent.getDir(dir.name), dryRun)
@@ -917,8 +917,8 @@ module Synqa
       end
       for file in sourceContent.files
         if file.copyDestination != nil
-          sourcePath = sourceLocation.getFullPath(file.fullPath)
-          destinationPath = destinationLocation.getFullPath(file.copyDestination.fullPath)
+          sourcePath = sourceLocation.getFullPath(file.relativePath)
+          destinationPath = destinationLocation.getFullPath(file.copyDestination.relativePath)
           destinationLocation.host.copyLocalFileToRemoteFile(sourcePath, destinationPath, dryRun)
         end
       end
@@ -929,7 +929,7 @@ module Synqa
     def doDeleteOperations(destinationContent, dryRun)
       for dir in destinationContent.dirs
         if dir.toBeDeleted
-          dirPath = destinationLocation.getFullPath(dir.fullPath)
+          dirPath = destinationLocation.getFullPath(dir.relativePath)
           destinationLocation.host.deleteDirectory(dirPath, dryRun)
         else
           doDeleteOperations(dir, dryRun)
@@ -937,7 +937,7 @@ module Synqa
       end
       for file in destinationContent.files
         if file.toBeDeleted
-          filePath = destinationLocation.getFullPath(file.fullPath)
+          filePath = destinationLocation.getFullPath(file.relativePath)
           destinationLocation.host.deleteFile(filePath, dryRun)
         end
       end
