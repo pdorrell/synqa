@@ -845,7 +845,7 @@ module Synqa
       end
       doAllCopyOperations(dryRun)
       doAllDeleteOperations(dryRun)
-      if (@destinationLocation.cachedContentFile and @sourceLocation.cachedContentFile and
+      if (not dryRun and @destinationLocation.cachedContentFile and @sourceLocation.cachedContentFile and
           File.exists?(@sourceLocation.cachedContentFile))
         FileUtils::Verbose.cp(@sourceLocation.cachedContentFile, @destinationLocation.cachedContentFile)
       end
