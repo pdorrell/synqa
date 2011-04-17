@@ -275,7 +275,7 @@ module Synqa
     end
     
     def copyLocalFileToRemoteFile(sourcePath, destinationPath, dryRun)
-      sshAndScp.copyLocalToRemoteDirectory(host, sourcePath, destinationPath, dryRun)
+      sshAndScp.copyLocalFileToRemoteFile(host, sourcePath, destinationPath, dryRun)
     end
     
     # Return a list of all subdirectories of the base directory (as paths relative to the base directory)
