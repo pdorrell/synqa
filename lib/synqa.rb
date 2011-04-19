@@ -1,5 +1,6 @@
 require 'time'
 require 'net/ssh'
+require 'net/scp'
 
 module Synqa
 
@@ -218,6 +219,25 @@ module Synqa
         end
       end
     end
+
+    def copyLocalToRemoteDirectory(userAtHost, sourcePath, destinationPath, dryRun)
+      user, host = userAtHost.split("@")
+      description = "SCP: copy directory #{sourcePath} to #{user}@#{host}:#{destinationPath}"
+      puts description
+      if not dryRun
+        Net::SCP.upload!(host, user, sourcePath, destinationPath, :recursive => true)
+      end
+    end
+    
+    def copyLocalFileToRemoteFile(userAtHost, sourcePath, destinationPath, dryRun)
+      user, host = userAtHost.split("@")
+      description = "SCP: copy file #{sourcePath} to #{user}@#{host}:#{destinationPath}"
+      puts description
+      if not dryRun
+        Net::SCP.upload!(host, user, sourcePath, destinationPath)
+      end
+    end
+
   end
   
   class ExternalSshScp<BaseSshScp
