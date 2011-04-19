@@ -1,7 +1,7 @@
 = synqa
 
 *Synqa* is a simple file syncing tool that works over SSH, and is designed
-primarily for maintaining static websites. It uses a hash function to
+primarily for maintaining static websites. It uses a secure hash function to
 determine which files don't need to be copied because the destination copy
 is already identical to the source copy.
 
@@ -20,8 +20,11 @@ I wrote *synqa* for two main reasons:
 == Dependencies of *synqa* are: 
 
 * Ruby 1.9.2
-* An SSH client. I use *plink*.
-* An SCP client. I use *pscp*.
+* Ruby gems *net-ssh* and *net-scp*
+
+Optionally:
+* An external SSH client. I use *plink*.
+* An external SCP client. I use *pscp*.
 
 For some sample code, see <b>examples/synga-useage.rb</b> and <b>examples/sample-rakefile</b>.
 
@@ -35,3 +38,6 @@ Synqa is licensed under the GNU General Public License version 3.
   containing whitespace or non-ASCII characters. Typically this doesn't matter for
   many static websites, but it will reduce the tool's usefulness as a general purpose
   backup tool.
+
+* Currently *Synqa* does not provide authentication options, on the assumption that you
+  will use Pageant (which automagically provides "presented" keys for specified user/host combinations).

@@ -6,8 +6,6 @@ STDOUT.sync = true
 
 include Synqa
 
-plinkAndPscp = ExternalSshScp.new("plink", "pscp")
-
 BASE_DIR = File.dirname(__FILE__)
 
 SRC_DIR = File.join(BASE_DIR, "src")
@@ -21,7 +19,7 @@ task :default => [:uploaddry] do |t|
 end
 
 REMOTE_HOST = SshContentHost.new("yourusername@yourhostname.example.com", 
-                                 Sha256Command.new(), plinkAndPscp)
+                                 Sha256Command.new())
 
 REMOTE_SITE = RemoteContentLocation.new(REMOTE_HOST, 
                                         "/home/username/public", 
