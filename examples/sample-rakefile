@@ -19,7 +19,7 @@ task :default => [:uploaddry] do |t|
 end
 
 REMOTE_HOST = SshContentHost.new("yourusername@yourhostname.example.com", 
-                                 Sha256Command.new(), "plink", "pscp")
+                                 Sha256Command.new())
 
 REMOTE_SITE = RemoteContentLocation.new(REMOTE_HOST, 
                                         "/home/username/public", 
@@ -29,22 +29,27 @@ LOCAL_SITE = LocalContentLocation.new(UPLOAD_DIR,
                                       Digest::SHA256, 
                                       File.join(SYNQA_DIR, "localContent.txt"))
 
+# Ensure that directory for cached content files exists
 task :init do |t|
   ensureDirectoryExists(SYNQA_DIR)
 end
 
+# Delete the cached content files
 task :clean => [:init] do |t|
   SyncOperation.new(LOCAL_SITE, REMOTE_SITE).clearCachedContentFiles()
 end
 
+# List the files and directories in the remote directory
 task :list do |t|
   REMOTE_SITE.listFiles()
 end
-                                    
+
+# Dry run for uploading (i.e. syncing) files to remote site                                    
 task :uploaddry => [:init] do |t|
   SyncOperation.new(LOCAL_SITE, REMOTE_SITE).doSync(:dryRun => true)
 end
 
+# Upload (i.e. sync) files to remote site                                    
 task :upload => [:init] do |t|
   SyncOperation.new(LOCAL_SITE, REMOTE_SITE).doSync()
 end
