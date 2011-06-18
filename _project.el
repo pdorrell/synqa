@@ -4,6 +4,6 @@
     (:run-project-command (ruby-run-file ,(concat (project-base-directory) "RunMain.rb")))
     (:build-function project-compile-with-command)
     (:compile-command "rake")
-    (:ruby-args ("-I."))
+    (:ruby-args (,(concat "-I" (project-base-directory) "lib")))
     ) )
 
