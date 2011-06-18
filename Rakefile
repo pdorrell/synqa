@@ -16,7 +16,7 @@ Jeweler::Tasks.new do |gem|
   gem.homepage = "http://www.1729.com/software/synqa/"
   gem.license = "GPLv3"
   gem.summary = %Q{Sync files from a local directory to a remote directory via SSH/SCP}
-  gem.description = %Q{Sync files from a local directory to a remote directory via SSH/SCP}
+  gem.description = %Q{Synqa syncs files from a local directory to a remote directory using an SSH connection. It is designed for uploading a static website. It determines if existing files need to be updated by calculating cryptographic hashes on the remote server.}
   gem.email = "http://www.1729.com/email.html"
   gem.authors = ["Philip Dorrell"]
   # Include your dependencies below. Runtime dependencies are required when using your gem,
