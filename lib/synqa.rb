@@ -195,6 +195,12 @@ module Synqa
   
   # Base SSH/SCP implementation
   class BaseSshScp
+    attr_reader :userAtHost, :user, :host
+    
+    def setUserAtHost(userAtHost)
+      @userAtHost = userAtHost
+      @user, @host = @userAtHost.split("@")
+    end
     
     # delete remote directory (if dryRun is false) using "rm -r"
     def deleteDirectory(userAtHost, dirPath, dryRun)
@@ -301,6 +307,7 @@ module Synqa
       super(hashCommand)
       @sshAndScp = sshAndScp != nil ?  sshAndScp : InternalSshScp.new()
       @userAtHost = userAtHost
+      @sshAndScp.setUserAtHost(userAtHost)
     end
     
     # Return readable description of base directory on remote system
