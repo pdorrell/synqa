@@ -1,6 +1,7 @@
 require 'time'
 require 'net/ssh'
 require 'net/scp'
+require 'fileutils'
 
 module Synqa
 
