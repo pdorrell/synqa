@@ -203,6 +203,10 @@ module Synqa
       @user, @host = @userAtHost.split("@")
     end
     
+    def close
+      # by default do nothing - close any cached connections
+    end
+    
     # delete remote directory (if dryRun is false) using "rm -r"
     def deleteDirectory(dirPath, dryRun)
       ssh("rm -r #{dirPath}", dryRun)
@@ -216,6 +220,24 @@ module Synqa
   
   # SSH/SCP using Ruby Net::SSH & Net::SCP
   class InternalSshScp<BaseSshScp
+    
+    def initialize
+      @connection = nil
+    end
+    
+    def connection
+      if @connection == nil
+        @connection = Net::SSH.start(host, user)
+      end
+      return @connection
+    end
+    
+    def close()
+      if @connection != nil
+        @connection.close()
+        @connection = nil
+      end
+    end
     
     # execute command on remote host (if dryRun is false), yielding lines of output
     def ssh(commandString, dryRun)
@@ -309,6 +331,10 @@ module Synqa
     
     def userAtHost
       return @sshAndScp.userAtHost
+    end
+    
+    def closeConnections()
+      @sshAndScp.close()
     end
     
     # Return readable description of base directory on remote system
@@ -837,6 +863,10 @@ module Synqa
       @baseDir = normalisedDir(baseDir)
     end
     
+    def closeConnections
+      @contentHost.closeConnections()
+    end
+    
     # list files within the base directory on the remote contentHost
     def listFiles()
       contentHost.listFiles(baseDir)
@@ -948,6 +978,7 @@ module Synqa
           File.exists?(@sourceLocation.cachedContentFile))
         FileUtils::Verbose.cp(@sourceLocation.cachedContentFile, @destinationLocation.cachedContentFile)
       end
+      closeConnections()
     end
 
     # Do all the copy operations, copying local directories or files which are missing from the remote location
@@ -1008,6 +1039,10 @@ module Synqa
           destinationLocation.contentHost.deleteFile(filePath, dryRun)
         end
       end
+    end
+    
+    def closeConnections
+      destinationLocation.closeConnections()
     end
   end
 end
