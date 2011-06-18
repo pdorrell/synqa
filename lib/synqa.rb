@@ -227,13 +227,19 @@ module Synqa
     
     def connection
       if @connection == nil
+        puts "Opening SSH connection to #{user}@#{host} ..."
         @connection = Net::SSH.start(host, user)
       end
       return @connection
     end
     
+    def scpConnection
+      return connection.scp
+    end
+    
     def close()
       if @connection != nil
+        puts "Closing SSH connection to #{user}@#{host} ..."
         @connection.close()
         @connection = nil
       end
@@ -244,12 +250,10 @@ module Synqa
       description = "SSH #{user}@#{host}: executing #{commandString}"
       puts description
       if not dryRun
-        Net::SSH.start(host, user) do |ssh|
-          outputText = ssh.exec!(commandString)
-          if outputText != nil then
-            for line in outputText.split("\n") do
-              yield line
-            end
+        outputText = connection.exec!(commandString)
+        if outputText != nil then
+          for line in outputText.split("\n") do
+            yield line
           end
         end
       end
@@ -260,7 +264,7 @@ module Synqa
       description = "SCP: copy directory #{sourcePath} to #{user}@#{host}:#{destinationPath}"
       puts description
       if not dryRun
-        Net::SCP.upload!(host, user, sourcePath, destinationPath, :recursive => true)
+        scpConnection.upload!(sourcePath, destinationPath, :recursive => true)
       end
     end
     
@@ -269,7 +273,7 @@ module Synqa
       description = "SCP: copy file #{sourcePath} to #{user}@#{host}:#{destinationPath}"
       puts description
       if not dryRun
-        Net::SCP.upload!(host, user, sourcePath, destinationPath)
+        scpConnection.upload!(sourcePath, destinationPath)
       end
     end
 
