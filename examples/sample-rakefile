@@ -1,55 +1,73 @@
+#N If we don't require 'based', we can't use Based:: module
 require 'based'
+#N If we don't require 'synqa', we can't use Synqa:: module
 require 'synqa'
+#N If we don't require 'digest/sha2', we can't use Digest::SHA256
 require 'digest/sha2'
 
+#N If we don't set STDOUT.sync, stdout output will be buffered, and won't always appear immediately
 STDOUT.sync = true
 
+#N If we don't include Synqa, we would have to use Synqa:: prefixes everywhere.
 include Synqa
 
+#N Without BASE_DIR, we won't know where SRC_DIR or SYNQA_DIR should be
 BASE_DIR = File.dirname(__FILE__)
 
+#N Without SRC_DIR, we won't be able to configure the BaseDirectory to upload files from
 SRC_DIR = File.join(BASE_DIR, "src")
 
+#N Without UPLOAD_DIR, we won't know what set of files we want to upload
 UPLOAD_DIR = Based::BaseDirectory.new(SRC_DIR, 
                                       :fileExclude => lambda{|file| file.name.end_with?("~")})
 
+#N Without SYNQA_DIR, we won't have a place to put the cached local and remote content files
 SYNQA_DIR = File.join(BASE_DIR, "output", "synqa")
-  
+
+#N Without a :default task, rake won't have a default task (i.e. the response to 'rake')  
 task :default => [:uploaddry] do |t|
 end
 
+#N Without REMOTE_HOST, REMOTE_SITE won't know what username@host to do an SSH login (and it won't know what sha256 command to use for digesting content files on the remote server)
 REMOTE_HOST = SshContentHost.new("yourusername@yourhostname.example.com", 
                                  Sha256Command.new())
 
+#N Without REMOTE_SITE, we won't know where to upload the content files to (i.e. what directory on what remote SSH host), and also we won't know where to locally cache information about the most recently uploaded content.
 REMOTE_SITE = RemoteContentLocation.new(REMOTE_HOST, 
                                         "/home/username/public", 
                                         File.join(SYNQA_DIR, "nearlyContent.txt"))
 
+#N Without LOCAL_SITE, we won't know where to upload content files from, or how to digest the local content files, or where to locally cache information about the most recently uploaded content files.
 LOCAL_SITE = LocalContentLocation.new(UPLOAD_DIR, 
                                       Digest::SHA256, 
                                       File.join(SYNQA_DIR, "localContent.txt"))
 
 # Ensure that directory for cached content files exists
+#N Without :init, the SYNQA_DIR might be missing, and attempts to create files in that directory would fail
 task :init do |t|
   ensureDirectoryExists(SYNQA_DIR)
 end
 
 # Delete the cached content files
+#N Without :clean, we might be stuck with cache files that we know or suspect are invalid, or alternatively we would have to delete them manually.
 task :clean => [:init] do |t|
   SyncOperation.new(LOCAL_SITE, REMOTE_SITE).clearCachedContentFiles()
 end
 
 # List the files and directories in the remote directory
+#N Without :list, we would have no easy way to list the existing files in the remote directory ("easy" in the sense of using rake on this rakefile)
 task :list do |t|
   REMOTE_SITE.listFiles()
 end
 
 # Dry run for uploading (i.e. syncing) files to remote site                                    
+#N Without :uploaddry, the only way to see what files are going to be uploaded and/or deleted by :upload is to actually call :upload and do the actual uploading and deleting.
 task :uploaddry => [:init] do |t|
   SyncOperation.new(LOCAL_SITE, REMOTE_SITE).doSync(:dryRun => true)
 end
 
-# Upload (i.e. sync) files to remote site                                    
+# Upload (i.e. sync) files to remote site
+#N Without :upload, we couldn't actually sync the files (i.e. upload new and changed files, and remotely delete locally deleted files)
 task :upload => [:init] do |t|
   SyncOperation.new(LOCAL_SITE, REMOTE_SITE).doSync()
 end

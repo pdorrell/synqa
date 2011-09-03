@@ -24,7 +24,7 @@ remoteHost = SshContentHost.new("username@host.example.com", sha256)
 
 
 # Note: the specification of plink & pscp assumes that keys are managed with Pageant, and therefore
-# do not need to be specified on the command line.
+# do not need to be specified on the command line. (Also net-ssh uses Pageant keys automatically if they are available.)
                                 
 remoteContentLocation = RemoteContentLocation.new(remoteHost, 
                                                   "/home/username/public", 
