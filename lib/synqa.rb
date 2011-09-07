@@ -431,95 +431,139 @@ module Synqa
     end
     
     # execute command on remote host (if dryRun is false), yielding lines of output
+    #N Without this, won't be able to execute ssh commands using an external ssh application
     def ssh(commandString, dryRun)
+      #N Without this, command being executed won't be echoed to output
       puts "SSH #{userAtHost} (#{shell.join(" ")}): executing #{commandString}"
+      #N Without this check, the command will execute even it it's meant to be a dry run
       if not dryRun
+        #N Without this, the command won't actually execute and return lines of output
         output = getCommandOutput(shell + [userAtHost, commandString])
+        #N Without this loop, the lines of output won't be processed
         while (line = output.gets)
+          #N Without this, the lines of output won't be passed to callers iterating over this method
           yield line.chomp
         end
+        #N Without closing, the process handle will leak resources
         output.close()
+        #N Without a check on status, a failed execution will be treated as a success (yielding however many lines were output before an error occurred)
         checkProcessStatus("SSH #{userAtHost} #{commandString}")
       end
     end
     
     # copy a local directory to a remote directory (if dryRun is false)
+    #N Without this method, a local directory cannot be copied to a remote directory using an external SCP application
     def copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
+      #N Without this, the external SCP application won't actually be run to copy the directory
       executeCommand("#{@scpCommandString} -r #{sourcePath} #{userAtHost}:#{destinationPath}", dryRun)
     end
     
     # copy a local file to a remote directory (if dryRun is false)
+    #N Without this method, a local file cannot be copied to a remote directory using an external SCP application
     def copyLocalFileToRemoteDirectory(sourcePath, destinationPath, dryRun)
+      #N Without this, the external SCP application won't actually be run to copy the file
       executeCommand("#{@scpCommandString} #{sourcePath} #{userAtHost}:#{destinationPath}", dryRun)
     end
     
   end
   
   # Representation of a remote system accessible via SSH
+  #N Without this class, there won't be a way to represent details of a remote host that ssh&scp commands can be executed against by a chosen implementation of SSH&SCP
   class SshContentHost<DirContentHost
     
     # The remote SSH/SCP login, e.g. SSH via "username@host.example.com"
+    #N Without this, we won't know how to execute SSH & SCP commands
     attr_reader :sshAndScp
     
+    #N Without initialize, it won't be possible to construct an object representing a remote host and the means to execute SSH & SCP commands and return hash values of remote file contents (with read-only attributes)
     def initialize(userAtHost, hashCommand, sshAndScp = nil)
+      #N Without calling super, the hash command won't be configured
       super(hashCommand)
+      #N Without this, the SSH & SCP implementation won't be configured
       @sshAndScp = sshAndScp != nil ?  sshAndScp : InternalSshScp.new()
+      #N Without this, the SSH & SCP implementation won't be configured with the user/host details to connect to.
       @sshAndScp.setUserAtHost(userAtHost)
     end
     
+    #N Without this method, we cannot easily display the user@host details
     def userAtHost
       return @sshAndScp.userAtHost
     end
     
+    #N Without this method, we cannot easily close any cached connections in the SSH & SCP implementation
     def closeConnections()
+      #N Without this, the connections won't be closed
       @sshAndScp.close()
     end
     
     # Return readable description of base directory on remote system
+    #N Without this, we have no easy way to display a description of a directory location on this remote host
     def locationDescriptor(baseDir)
+      #N Without this, the directory being displayed might be missing the final '/'
       baseDir = normalisedDir(baseDir)
       return "#{userAtHost}:#{baseDir} (connect = #{shell}/#{scpProgram}, hashCommand = #{hashCommand})"
     end
     
     # execute an SSH command on the remote system, yielding lines of output
     # (or don't actually execute, if dryRun is false)
+    #N Without this method, we won't have an easy way to execute a remote command on the host, echoing the command details first (so that we can see what command is to be executed), and possibly only doing a dry run and not actually executing the command
     def ssh(commandString, dryRun = false)
+      #N Without this, the command won't actually be executed
       sshAndScp.ssh(commandString, dryRun) do |line|
+        #N Without this, this line of output won't be available to the caller
         yield line
       end
     end
     
     # delete a remote directory, if dryRun is false
+    #N Without this, we won't have an easy way to delete a directory on the remote system, echoing the command used to delete the directory, and optionally only doing a dry run
     def deleteDirectory(dirPath, dryRun)
+      #N Without this, the deletion command won't be run at all
       sshAndScp.deleteDirectory(dirPath, dryRun)
     end
     
     # delete a remote file, if dryRun is false
+    #N Without this, we won't have an easy way to delete a file on the remote system, echoing the command used to delete the file, and optionally only doing a dry run
     def deleteFile(filePath, dryRun)
+      #N Without this, the deletion command won't be run at all
       sshAndScp.deleteFile(filePath, dryRun)
     end
     
     # copy a local directory to a remote directory, if dryRun is false
+    #N Without this, we won't have an easy way to copy a local directory to a directory in the remote system, echoing the command used to copy the directory, and optionally only doing a dry run
     def copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
+      #N Without this, the copy command won't be run at all
       sshAndScp.copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
     end
     
     # copy a local file to a remote directory, if dryRun is false
+    #N Without this, we won't have an easy way to copy a local file to a directory in the remote system, echoing the command used to copy the file, and optionally only doing a dry run
     def copyLocalFileToRemoteDirectory(sourcePath, destinationPath, dryRun)
+      #N Without this, the copy command won't be run at all
       sshAndScp.copyLocalFileToRemoteDirectory(sourcePath, destinationPath, dryRun)
     end
     
     # Return a list of all subdirectories of the base directory (as paths relative to the base directory)
+    #N Without this we won't have a way to list the relative paths of all directories within a particular base directory on the remote system.
     def listDirectories(baseDir)
+      #N Without this, the base directory might be missing the final '/', which might cause a one-off error when 'subtracting' the base directory name from the absolute paths to get relative paths
       baseDir = normalisedDir(baseDir)
+      #N Without this, we won't know that directories are about to be listed
       puts "Listing directories ..."
+      #N Without this, we won't have an empty array ready to accumulate directory relative paths
       directories = []
+      #N Without this, we won't know the length of the base directory to remove from the beginning of the absolute directory paths
       baseDirLen = baseDir.length
+      #N Without this, the directory-listing command won't be executed
       ssh(findDirectoriesCommand(baseDir).join(" ")) do |line|
+        #N Without this, we won't get feedback about which directories were found
         puts " #{line}"
+        #N Without this check, we might ignore an error that somehow resulted in directories being listed that aren't within the specified base directory
         if line.start_with?(baseDir)
+          #N Without this, the relative path of this directory won't be added to the list
           directories << line[baseDirLen..-1]
         else
+          #N Without raising this error, and unexpected directory not in the base directory would just be ignored
           raise "Directory #{line} is not a sub-directory of base directory #{baseDir}"
         end
       end
