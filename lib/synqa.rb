@@ -563,7 +563,7 @@ module Synqa
           #N Without this, the relative path of this directory won't be added to the list
           directories << line[baseDirLen..-1]
         else
-          #N Without raising this error, and unexpected directory not in the base directory would just be ignored
+          #N Without raising this error, an unexpected directory not in the base directory would just be ignored
           raise "Directory #{line} is not a sub-directory of base directory #{baseDir}"
         end
       end
@@ -572,19 +572,29 @@ module Synqa
     
     # Yield lines of output from the command to display hash values and file names
     # of all files within the base directory
+    #N Without this, where would be no way to list all files in a directory on the remote system and determine the hash of the contents of the file
     def listFileHashLines(baseDir)
+      #N Without this, the base directory might be missing the final '/', which might cause a one-off error when 'subtracting' the base directory name from the absolute paths to get relative paths
       baseDir = normalisedDir(baseDir)
+      #N Without this, we wouldn't know what command to run remotely to loop over the output of the file-files command and run the hash command on each line of output
       remoteFileHashLinesCommand = findFilesCommand(baseDir) + ["|", "xargs", "-r"] + @hashCommand.command
+      #N Without this we wouldn't actually run the command just defined
       ssh(remoteFileHashLinesCommand.join(" ")) do |line| 
+        #N Without this the line of output wouldn't be echoed to the user
         puts " #{line}"
+        #N Without this the line of output (with a file name and a hash value) wouldn't be available to the caller of this method
         yield line 
       end
     end
     
     # List all files within the base directory to stdout
+    #N Without this, we wouldn't have a way to list what files are currently in the target directory on the remote host (i.e. if we wanted to see what files where currently there)
     def listFiles(baseDir)
+      #N Without this, the base directory might be missing the final '/', which might cause a one-off error when 'subtracting' the base directory name from the absolute paths to get relative paths
       baseDir = normalisedDir(baseDir)
+      #N Without this we wouldn't be executing the command to list all files in the remote directory
       ssh(findFilesCommand(baseDir).join(" ")) do |line| 
+        #N Without this we wouldn't be echoing the file name on this line for the user to read
         puts " #{line}"
       end
     end
@@ -594,45 +604,63 @@ module Synqa
   # An object representing the content of a file within a ContentTree.
   # The file may be marked for copying (if it's in a source ContentTree) 
   # or for deletion (if it's in a destination ContentTree)
+  #N Without this we would have no way to represent a named file within directory tree (so named with its relative path), and its contents
   class FileContent
     # The name of the file
+    #N Without this, we won't know what the name of the file is
     attr_reader :name
     
     # The hash value of the file's contents
+    #N Without this, we wouldn't know whether the file's contents are the same or not as the contents of some other file
     attr_reader :hash
     
     # The components of the relative path where the file is found
+    #N Without this we wouldn't have that path broken into components corresponding to steps on the tree from its "root" to the branch corresponding to this file.
     attr_reader :parentPathElements
     
     # The destination to which the file should be copied
+    #N Without this we won't know where this file is to be individually copied to (for files that cannot be copied as part of a larger group)
     attr_reader :copyDestination
     
     # Should this file be deleted
+    #N Without this we won't know whether this file is to be deleted (or not)
     attr_reader :toBeDeleted
     
+    #N Without this we can't construct an object representing our initial knowledge of a file that exists (and which we might later decide to mark for copying or for deletion)
     def initialize(name, hash, parentPathElements)
+      #N Without this we won't remember the name of the file
       @name = name
+      #N Without this we won't know the hash of the contents of the file
       @hash = hash
+      #N Without this we won't know the path elements of the sub-directory (within the directory tree) containing the file
       @parentPathElements = parentPathElements
+      #N Without this the file object won't be in a default state of _not_ to be copied
       @copyDestination = nil
+      #N Without this the file object won't be in a default state of _not_ to be deleted
       @toBeDeleted = false
     end
     
     # Mark this file to be copied to a destination directory (from a destination content tree)
+    #N Without this we can't decide to copy a local file to a remote directory
     def markToCopy(destinationDirectory)
+      #N Without this we won't remember that the file is to be copied to the destination directory
       @copyDestination = destinationDirectory
     end
     
     # Mark this file to be deleted
+    #N Without this we can't decide to delete a remote file
     def markToDelete
+      #N Without this we won't remember that this file is to be deleted
       @toBeDeleted = true
     end
     
+    #N Without this we can't easily and compactly display the file name and hash value
     def to_s
       return "#{name} (#{hash})"
     end
     
     # The relative name of this file in the content tree (relative to the base dir)
+    #N Without this we can't easily reconstruct the relative path as a single string
     def relativePath
       return (parentPathElements + [name]).join("/")
     end
@@ -642,44 +670,64 @@ module Synqa
   # sub-directories within a base directory. The file contents are described via
   # cryptographic hash values.
   # Each sub-directory within a content tree is also represented as a ContentTree.
+  #N Without this we can't represent information about the contents of a set of files within sub-directories within a base directory on a local or remote system in a manner that let's us easily determine how a directory tree on a local system is different from the directory tree on a remote system (so we can efficiently sync from local to remote)
   class ContentTree
     # name of the sub-directory within the containing directory (or nil if this is the base directory)
+    #N Without this we don't know the local name of the sub-directory (other then the base directory, for which we don't know or care about its local name, or it might not even have one, if its the actual root directory of the mounted file system)
     attr_reader :name
     
     # path elements from base directory leading to this one
+    #N Without this we wouldn't have the path broken into components corresponding to steps on the tree from its "root" to the branch corresponding to this file.
     attr_reader :pathElements
     
     # files within this sub-directory (as FileContent's)
+    #N Without this we won't know what files are directly contained in this sub-directory
     attr_reader :files
     
     # immediate sub-directories of this directory
+    #N Without this we won't know what directories are immediately contained in this sub-directory
     attr_reader :dirs
     
     # the files within this sub-directory, indexed by file name
+    #N Without this we won't be able to directly and quickly retrieve a file by it's name (e.g. we already know the name of a file in another directory, and we want to find the same file it it exists in this directory)
     attr_reader :fileByName
     
     # immediate sub-directories of this directory, indexed by name  
+    #N Without this we won't be able to directly and quickly retrieve a sub-directory by it's name (e.g. we already know the name of a sub-directory in another directory, and we want to find the same sub-directory it it exists in this directory)
     attr_reader :dirByName
     
     # where this directory should be copied to
+    #N Without this we won't be able to know that this directory (and all its contents) is marked for copying to another directory on a remote system.
     attr_reader :copyDestination
     
     # whether this directory should be deleted
+    #N Without this we won't be able to know that the directory and all its contents are to be deleted.
     attr_reader :toBeDeleted
     
     # the UTC time (on the local system, even if this content tree represents a remote directory)
     # that this content tree was constructed. Only set for the base directory.
+    #N Without this we won't be able to timestamp what time information about the base directory was read (so we can know if files within the content tree have changed because we see that their modification times are later than this timestamp)
     attr_accessor :time
     
+    #N Without this we won't be able to initialise information about this directory based on knowing it's name and it's relative path, ready to have information about files and sub-directories added to it, and ready to be marked for deletion or copying as required.
     def initialize(name = nil, parentPathElements = nil)
+      #N Without this we won't remember the name of the directory
       @name = name
+      #N Without this we won't know the path elements of the sub-directory (within the directory tree) containing this directory
       @pathElements = name == nil ? [] : parentPathElements + [name]
+      #N Without this we won't be ready to add files to the list of files in this directory
       @files = []
+      #N Without this we won't be ready to add directories to the list of sub-directories immediately contained in this directory
       @dirs = []
+      #N Without this we won't be ready to add files so we can look them up by name
       @fileByName = {}
+      #N Without this we won't be ready to add immediate sub-directories so we can look them up by name
       @dirByName = {}
+      #N Without this the directory object won't be in a default state of _not_ to be copied
       @copyDestination = nil
+      #N Without this the directory object won't be in a default state of _not_ to be deleted
       @toBeDeleted = false
+      #N Without this the directory object won't be in a default state of not yet having set the timestamp
       @time = nil
     end
     
