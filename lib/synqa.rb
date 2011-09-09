@@ -732,77 +732,116 @@ module Synqa
     end
     
     # mark this directory to be copied to a destination directory
+    #N Without this we can't mark a directory to be copied to a directory on a remote system
     def markToCopy(destinationDirectory)
+      #N Without this it won't be marked for copying
       @copyDestination = destinationDirectory
     end
     
     # mark this directory (on a remote system) to be deleted
+    #N Without this we can't mark a directory (on a remote system) to be deleted
     def markToDelete
+      #N Without this it won't be marked for deletion
       @toBeDeleted = true
     end
     
     # the path of the directory that this content tree represents, relative to the base directory
+    #N Without this we can't know the relative path of the sub-directory within the content tree
     def relativePath
+      #N Without this the path elements won't be joined together with "/" to get the relative path as a single string
       return @pathElements.join("/")
     end
     
     # convert a path string to an array of path elements (or return it as is if it's already an array)
+    #N Without this we can't start from a path and decompose it into elements (optionally allowing for the case where the conversion has already been done)
     def getPathElements(path)
+      #N Without this path as a single string won't be decomposed into a list of elements
       return path.is_a?(String) ? (path == "" ? [] : path.split("/")) : path
     end
     
     # get the content tree for a sub-directory (creating it if it doesn't yet exist)
+    #N Without this we can't create the content tree for an immediate sub-directory of the directory represented by this content tree (which means we can't recursively create the full content tree for this directory)
     def getContentTreeForSubDir(subDir)
+      #N Without this we won't know if the relevant sub-directory content tree hasn't already been created
       dirContentTree = dirByName.fetch(subDir, nil)
+      #N Without this check, we'll be recreated the sub-directory content tree, even if we know it has already been created
       if dirContentTree == nil
+        #N Without this the new sub-directory content tree won't be created
         dirContentTree = ContentTree.new(subDir, @pathElements)
+        #N Without this the new sub-directory won't be added to the list of sub-directories of this directory
         dirs << dirContentTree
+        #N Without this we won't be able to find the sub-directory content tree by name
         dirByName[subDir] = dirContentTree
       end
       return dirContentTree
     end
     
     # add a sub-directory to this content tree
+    # Without this we won't be able to add a sub-directory (given as a path with possibly more than one element) into the content tree
     def addDir(dirPath)
+      #N Without this, the directory path won't be broken up into its elements
       pathElements = getPathElements(dirPath)
+      #N Without this check, it will fail in the case where dirPath has no elements in it
       if pathElements.length > 0
+        #N Without this, we won't know the first element in the path (which is needed to construct the immediate sub-directory content-tree representing the first part of the path)
         pathStart = pathElements[0]
+        #N Without this we won't know the rest of the elements so that we can add that part of the dir path into the content tree we've just created
         restOfPath = pathElements[1..-1]
+        #N Without this the immedate sub-directory content tree and the chain of sub-directories within that won't be created
         getContentTreeForSubDir(pathStart).addDir(restOfPath)
       end
     end
     
     # recursively sort the files and sub-directories of this content tree alphabetically
+    #N Without this, we will have to put up with sub-directories and file-directories being listed in whatever order the listing commands happen to list them in, which may not be consisted across different copies of effectively the same content tree on different systems.
     def sort!
+      #N Without this, the immediate sub-directories won't get sorted
       dirs.sort_by! {|dir| dir.name}
+      #N Without this, files contained immediately in this directory won't get sorted
       files.sort_by! {|file| file.name}
+      #N Without this, files and directories contained within sub-directories of this directory won't get sorted
       for dir in dirs
+        #N Without this, this sub-directory won't have its contents sorted
         dir.sort!
       end
     end
     
     # given a relative path, add a file and hash value to this content tree
+    #N Without this, we can't add a file description (given as a relative path and a hash value) into the content tree for this directory
     def addFile(filePath, hash)
+      #N Without this the path won't be broken up into elements so that we can start by processing the first element
       pathElements = getPathElements(filePath)
+      #N Without this check, we would attempt to process an invalid path consisting of an empty string or no path elements (since the path should always contain at least one element consisting of the file name)
       if pathElements.length == 0
+        #N Without this, the case of zero path elements will not be treated as an error
         raise "Invalid file path: #{filePath.inspect}"
       end
+      #N Without this check, the cases of having the immediate file name (to be added as a file in this directory) and having a file within a sub-directory will not be distinguished
       if pathElements.length == 1
+        #N Without this, the single path element will not be treated as being the immediate file name
         fileName = pathElements[0]
+        #N Without this, we won't have our object representing the file name and a hash of its contents
         fileContent = FileContent.new(fileName, hash, @pathElements)
+        #N Without this, the file&content object won't be added to the list of files contained in this directory
         files << fileContent
+        #N Without this, we won't be able to look up the file&content object by name.
         fileByName[fileName] = fileContent
       else
+        #N Without this, we won't have the first part of the file path required to identify the immediate sub-directory that it is found in.
         pathStart = pathElements[0]
+        #N Without this, we won't have the rest of the path which needs to be passed to the content tree in the immediate sub-directory
         restOfPath = pathElements[1..-1]
+        #N Without this, the file & hash won't be added into the sub-directory's content tree
         getContentTreeForSubDir(pathStart).addFile(restOfPath, hash)
       end
     end
     
     # date-time format for reading and writing times, e.g. "2007-12-23 13:03:99.012 +0000"
+    #N Without this, we won't have a simple easy to read&write date time format for writing times in and out of content tree files.
     @@dateTimeFormat = "%Y-%m-%d %H:%M:%S.%L %z"
     
     # pretty-print this content tree
+    #N Without this, we won't have a way to output a nice easy-to-read description of this content tree object
     def showIndented(name = "", indent = "  ", currentIndent = "")
       if time != nil
         puts "#{currentIndent}[TIME: #{time.strftime(@@dateTimeFormat)}]"
