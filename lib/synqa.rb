@@ -843,85 +843,135 @@ module Synqa
     # pretty-print this content tree
     #N Without this, we won't have a way to output a nice easy-to-read description of this content tree object
     def showIndented(name = "", indent = "  ", currentIndent = "")
+      #N Without this check, would attempt to output time for directories other than the root directory for which time has not been recorded
       if time != nil
+        #N Without this, any recorded time value wouldn't be output
         puts "#{currentIndent}[TIME: #{time.strftime(@@dateTimeFormat)}]"
       end
+      #N Without this check, an empty line would be output for root level (which has no name within the content tree)
       if name != ""
+        #N Without this,non-root sub-directories would not be displayed
         puts "#{currentIndent}#{name}"
       end
+      #N Without this check, directories not to be copied would be shown as to be copied
       if copyDestination != nil
+        #N Without this, directories marked to be copied would not be displayed as such
         puts "#{currentIndent} [COPY to #{copyDestination.relativePath}]"
       end
+      #N Without this check, directories not be to deleted would be shown as to be deleted
       if toBeDeleted
+        #N Without this, directories marked to be deleted would not be displayed as such
         puts "#{currentIndent} [DELETE]"
       end
+      #N Without this, output for sub-directories and files would not be indented further than their parent
       nextIndent = currentIndent + indent
+      #N Without this, sub-directories of this directory won't be included in the output
       for dir in dirs
+        #N Without this, this sub-directory won't be included in the output (suitable indented relative to the parent)
         dir.showIndented("#{dir.name}/", indent = indent, currentIndent = nextIndent)
       end
+      #N Without this, files contained immediately in this directory won't be included in the output
       for file in files
+        #N Without this, this file and the hash of its contents won't be shown in the output
         puts "#{nextIndent}#{file.name}  - #{file.hash}"
+        #N Without this check, files not to be copied would be shown as to be copied
         if file.copyDestination != nil
+          #N Without this, files marked to be copied would not be displayed as such
           puts "#{nextIndent} [COPY to #{file.copyDestination.relativePath}]"
         end
+        #N Without this check, files not to be deleted would be shown as to be deleted
         if file.toBeDeleted
+          #N Without this, files marked to be deleted would not be displayed as such
           puts "#{nextIndent} [DELETE]"
         end
       end
     end
 
     # write this content tree to an open file, indented
+    #N Without this, the details for the content tree could not be output to a file in a format that could be read in again (by readFromFile)
     def writeLinesToFile(outFile, prefix = "")
+      #N Without this check, it would attempt to write out a time value when none was available
       if time != nil
+        #N Without this, a line for the time value would not be written to the file
         outFile.puts("T #{time.strftime(@@dateTimeFormat)}\n")
       end
+      #N Without this, directory information would not be written to the file (for immediate sub-directories)
       for dir in dirs
+        #N Without this, a line for this sub-directory would not be written to the file
         outFile.puts("D #{prefix}#{dir.name}\n")
+        #N Without this, lines for the sub-directories and files contained with this directory would not be written to the file
         dir.writeLinesToFile(outFile, "#{prefix}#{dir.name}/")
       end
+      #N Without this, information for files directly contained within this directory would not be written to the file
       for file in files
+      #N Without this, the line for this file would not be written to the file
         outFile.puts("F #{file.hash} #{prefix}#{file.name}\n")
       end
     end
     
     # write this content tree to a file (in a format which readFromFile can read back in)
+    #N Without this, information for a content tree could not be output to a named file  in a format that could be read in again (by readFromFile)
     def writeToFile(fileName)
+      #N Without this, the user would not have feedback that the content tree is being written to the named file
       puts "Writing content tree to file #{fileName} ..."
+      #N Without this, the named file cannot be written to
       File.open(fileName, "w") do |outFile|
+        #N Without this, the lines of information for the content tree will not be written to the open file
         writeLinesToFile(outFile)
       end
     end
     
     # regular expression for directory entries in content tree file
+    #N Without this, we have no way to parse the "D" directory lines output by writeLinesToFile
     @@dirLineRegex = /^D (.*)$/
     
     # regular expression for file entries in content tree file
+    #N Without this, we have no way to parse the "F" file lines output by writeLinesToFile
     @@fileLineRegex = /^F ([^ ]*) (.*)$/
     
     # regular expression for time entry in content tree file
+    #N Without this, we have no way to parse the "T" time lines output by writeLinesToFile
     @@timeRegex = /^T (.*)$/
     
     # read a content tree from a file (in format written by writeToFile)
+    #N Without this method, we don't know how to read in a content tree from a file written out by writeToFile
     def self.readFromFile(fileName)
+      #N Without this, we don't have an empty ContentTree ready to be populated with information read in from the file
       contentTree = ContentTree.new()
+      #N Without this, the user does not receive feedback that the content tree is being read in from the named file
       puts "Reading content tree from #{fileName} ..."
+      #N Without this, we can't read through the lines in the content tree file
       IO.foreach(fileName) do |line|
+        #N Without this, we can't parse a line that might be a "D" directory line
         dirLineMatch = @@dirLineRegex.match(line)
+        #N Without this check, we would attempt to parse a non-directory line as if it was a directory line
         if dirLineMatch
+          #N Without this, we would not extract the actual directory name from the D line
           dirName = dirLineMatch[1]
+          #N Without this, the extracted directory name would not be recorded into the content tree
           contentTree.addDir(dirName)
         else
+        #N Without this, we can't parse a line that might be an "F" file line
           fileLineMatch = @@fileLineRegex.match(line)
+          #N Without this check, we would attempt to parse a non-file line as if it was a file line
           if fileLineMatch
+            #N Without this, we would not extract the actual hash value from the F line
             hash = fileLineMatch[1]
+            #N Without this, we would not extract the actual file name from the F line
             fileName = fileLineMatch[2]
+            #N Without this, the extracted file name and hash value would not be recorded into the content tree
             contentTree.addFile(fileName, hash)
           else
+            #N Without this, we can't parse a line that might be an "T" file line
             timeLineMatch = @@timeRegex.match(line)
+            #N Without this check, we would attempt to parse a non-time line as if it was a time line
             if timeLineMatch
+              #N Without this, we would not extract the actual time value from the T line
               timeString = timeLineMatch[1]
+              #N Without this, the extracted time value would not be recorded into the content tree
               contentTree.time = Time.strptime(timeString, @@dateTimeFormat)
             else
+              #N Without this, we would silently ignore an invalid line read in from the content file (which might indicate a bug in the coded which wrote the file, or that we are trying to read the wrong file)
               raise "Invalid line in content tree file: #{line.inspect}"
             end
           end
@@ -932,19 +982,32 @@ module Synqa
 
     # read a content tree as a map of hashes, i.e. from relative file path to hash value for the file
     # Actually returns an array of the time entry (if any) and the map of hashes
+    #N Without this we wouldn't have an easy way to construct a mapping from file name to hash of contents (and also a time value, so we can determine that the hash value might be incorrect for any file with a modification time later than that time) that didn't involve reading in a whole content tree, and then processing that to construct the mapping
     def self.readMapOfHashesFromFile(fileName)
+      #N Without this, we wouldn't have an empty map to populate with value to be read from the file
       mapOfHashes = {}
+      #N Without this, we wouldn't have an empty time value to populate from the file
       time = nil
+      #N Without this, we couldn't read lines from the named file
       File.open(fileName).each_line do |line|
+        #N Without this, we can't parse a line that might be an "F" file line
         fileLineMatch = @@fileLineRegex.match(line)
+          #N Without this check, we would attempt to parse a non-file line as if it was a file line
           if fileLineMatch
+            #N Without this, we would not extract the actual hash value from the F line
             hash = fileLineMatch[1]
+            #N Without this, we would not extract the actual file name from the F line
             fileName = fileLineMatch[2]
+            #N Without this, the extracted file name and hash value would not be recorded into the map
             mapOfHashes[fileName] = hash
           end
+        #N Without this, we can't parse a line that might be an "T" file line
         timeLineMatch = @@timeRegex.match(line)
+        #N Without this check, we would attempt to parse a non-time line as if it was a time line
         if timeLineMatch
+          #N Without this, we would not extract the actual time value from the T line
           timeString = timeLineMatch[1]
+          #N Without this, the extracted time value would not be recorded
           time = Time.strptime(timeString, @@dateTimeFormat)
         end
       end
@@ -959,11 +1022,13 @@ module Synqa
     end
     
     # Get the named sub-directory content tree, if it exists
+    #N Without this we wouln't have an easy way to get an immediate sub-directory by name, but returning nil for one that doesn't exist (in the case where the name is from a different directory, and that directory doesn't exist in this one)
     def getDir(dir)
       return dirByName.fetch(dir, nil)
     end
     
     # Get the named file & hash value, if it exists
+    #N Without this we wouln't have an easy way to get an immediate file & hash by name, but returning nil for one that doesn't exist (in the case where the name is from a different directory, and that file doesn't exist in this one)
     def getFile(file)
       return fileByName.fetch(file, nil)
     end
@@ -971,18 +1036,28 @@ module Synqa
     # Mark copy operations, given that the corresponding destination directory already exists.
     # For files and directories that don't exist in the destination, mark them to be copied.
     # For sub-directories that do exist, recursively mark the corresponding sub-directory copy operations.
+    #N Without this we won't know how to mark which sub-directories and files in this (source) directory need to by marked for copying into the other directory, because they don't exist in the other (destination) directory
     def markCopyOperations(destinationDir)
+      #N Without this we can't loop over the immediate sub-directories to determine how each one needs to be marked for copying
       for dir in dirs
+        #N Without this we won't have the corresponding sub-directory in the other directory with the same name as this sub-directory (if it exists)
         destinationSubDir = destinationDir.getDir(dir.name)
+        #N Without this check, we won't be able to correctly process a sub-directory based on whether or not one with the same name exists in the other directory
         if destinationSubDir != nil
+          #N Without this, files and directories missing or changed from the other sub-directory (which does exist) won't get copied
           dir.markCopyOperations(destinationSubDir)
         else
+          #N Without this, the corresponding missing sub-directory in the other directory won't get updated from this sub-directory
           dir.markToCopy(destinationDir)
         end
       end
+      #N Without this we can't loop over the files to determine how each one needs to be marked for copying
       for file in files
+        #N Without this we won't have the corresponding file in the other directory with the same name as this file (if it exists)
         destinationFile = destinationDir.getFile(file.name)
+        #N Without this check, this file will get copied, even if it doesn't need to be (it only needs to be if it is missing, or the hash is different)
         if destinationFile == nil or destinationFile.hash != file.hash
+          #N Without this, a file that is missing or changed won't get copied (even though it needs to be)
           file.markToCopy(destinationDir)
         end
       end
@@ -991,18 +1066,28 @@ module Synqa
     # Mark delete operations, given that the corresponding source directory exists.
     # For files and directories that don't exist in the source, mark them to be deleted.
     # For sub-directories that do exist, recursively mark the corresponding sub-directory delete operations.
+    #N Without this we won't know how to mark which sub-directories and files in this (destination) directory need to by marked for deleting (because they don't exist in the other source directory)
     def markDeleteOptions(sourceDir)
+      #N Without this we can't loop over the immediate sub-directories to determine how each one needs to be marked for deleting
       for dir in dirs
+        #N Without this we won't have the corresponding sub-directory in the other directory with the same name as this sub-directory (if it exists)
         sourceSubDir = sourceDir.getDir(dir.name)
+        #N Without this check, we won't be able to correctly process a sub-directory based on whether or not one with the same name exists in the other directory
         if sourceSubDir == nil
+          #N Without this, this directory won't be deleted, even though it doesn't exist at all in the corresponding source directory
           dir.markToDelete()
         else
+          #N Without this, files and directories missing from the other source sub-directory (which does exist) won't get deleted
           dir.markDeleteOptions(sourceSubDir)
         end
       end
+      #N Without this we can't loop over the files to determine which ones need to be marked for deleting
       for file in files
+        #N Without this we won't known if the corresponding file in the source directory with the same name as this file exists
         sourceFile = sourceDir.getFile(file.name)
+        #N Without this check, we will incorrectly delete this file whether or not it exists in the source directory
         if sourceFile == nil
+          #N Without this, this file which doesn't exist in the source directory won't get deleted from this directory
           file.markToDelete()
         end
       end
