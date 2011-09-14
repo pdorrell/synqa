@@ -1096,40 +1096,58 @@ module Synqa
   
   # Base class for a content location which consists of a base directory
   # on a local or remote system.
+  #N Without this class, there would be no place to put code common to the representation of the local file system and the representation of the remote file system
   class ContentLocation
     
     # The name of a file used to hold a cached content tree for this location (can optionally be specified)
+    #N Without the cached content file, it would be necessary to list all files and calculate hashes of all files (for both the local and remote file system) every time a sync operation is performed.
     attr_reader :cachedContentFile
     
+    #N Without this constructor, there is no way to construct a content location object with read-only cached content file attribute
     def initialize(cachedContentFile)
+      #N Without this the name of the cached content file won't be remembered
       @cachedContentFile = cachedContentFile
     end
     
     # Get the cached content file name, if specified, and if the file exists
+    #N Without this there is no easy way to get the existing cached content tree (if the cached content file is specified, and if the file exists)
     def getExistingCachedContentTreeFile
+      #N Without this check, it would try to find the cached content file when none was specified
       if cachedContentFile == nil
+        #N Without this, there will be no feedback to the user that no cached content file is specified
         puts "No cached content file specified for location"
         return nil
+      #N Without this check, it will try to open the cached content file when it doesn't exist (i.e. because it hasn't been created, or, it has been deleted)
       elsif File.exists?(cachedContentFile)
+        #N Without this, it won't return the cached content file when it does exist
         return cachedContentFile
       else
+        #N Without this, there won't be feedback to the user that the specified cached content file doesn't exist.
         puts "Cached content file #{cachedContentFile} does not yet exist."
         return nil
       end
     end
     
     # Delete any existing cached content file
+    #N Without this, there won't be an easy way to delete the cached content file (if it is specified and it exists)
     def clearCachedContentFile
+      #N Without this check, it will try to delete a cached content file even when it doesn't exist
       if cachedContentFile and File.exists?(cachedContentFile)
+        #N Without this, there will be no feedback to the user that the specified cached content file is being deleted
         puts " deleting cached content file #{cachedContentFile} ..."
+        #N Without this, the specified cached content file won't be deleted
         File.delete(cachedContentFile)
       end
     end
     
     # Get the cached content tree (if any), read from the specified cached content file.
+    #N Without this method, there won't be an easy way to get the cached content from the cached content file (if the file is specified, and if it exists)
     def getCachedContentTree
+      #N Without this, we won't know the name of the specified cached content file (if it is specified)
       file = getExistingCachedContentTreeFile
+      #N Without this check, we would attempt to read a non-existent file
       if file
+        #N Without this, a content tree that has been cached won't be returned.
         return ContentTree.readFromFile(file)
       else
         return nil
@@ -1138,12 +1156,18 @@ module Synqa
     
     # Read a map of file hashes (mapping from relative file name to hash value) from the
     # specified cached content file
+    #N Without this, there won't be an easy way to get a map of file hashes (keyed by relative file name), for the purpose of getting the hashes of existing files which are known not to have changed (by comparing modification time to timestamp, which is also returned)
     def getCachedContentTreeMapOfHashes
+      #N Without this, we won't know the name of the specified cached content file (if it is specified)
       file = getExistingCachedContentTreeFile
+      #N Without this check, we would attempt to read a non-existent file
       if file
+        #N Without this, there won't be feedback to the user that we are reading the cached file hashes
         puts "Reading cached file hashes from #{file} ..."
+        #N Without this, a map of cached file hashes won't be returned
         return ContentTree.readMapOfHashesFromFile(file)
       else
+        #N Without this, the method wouldn't consistently return an array of timestamp + map of hashes in the case where there is no cached content file
         return [nil, {}]
       end
     end
@@ -1152,21 +1176,29 @@ module Synqa
   
   # A directory of files on a local system. The corresponding content tree
   # can be calculated directly using Ruby library functions.
+  #N Without this class, there would be no representation for a "local" content location, i.e. a directory on the user's local system
   class LocalContentLocation<ContentLocation
     
     # the base directory, for example of type Based::BaseDirectory. Methods invoked are: allFiles, subDirs and fullPath.
     # For file and dir objects returned by allFiles & subDirs, methods invoked are: relativePath and fullPath
+    #N Without this, we won't know where on the local system the directory is
     attr_reader :baseDirectory
     # the ruby class that generates the hash, e.g. Digest::SHA256
+    #N Without this, we won't know which hash function to apply to files
     attr_reader :hashClass
     
+    #N Without this, we won't be able to construct an object representing a local content location, with read-only attributes specifying the directory, the hash function, and, optionally, the name of the cached content file.
     def initialize(baseDirectory, hashClass, cachedContentFile = nil)
+      #N Without this, we won't remember the cached content file name
       super(cachedContentFile)
+      #N Without this, we won't remember the base directory
       @baseDirectory = baseDirectory
+      #N Without this, we won't remember the hash function
       @hashClass = hashClass
     end
     
     # get the full path of a relative path (i.e. of a file/directory within the base directory)
+    #N Without this, we won't have an easy way to calculate the full path of a file or directory in the content tree that is specified by its relative path.
     def getFullPath(relativePath)
       return @baseDirectory.fullPath + relativePath
     end
@@ -1177,26 +1209,44 @@ module Synqa
     # If there is an existing cached content file, use that to get the hash values
     # of files whose modification time is earlier than the time value for the cached content tree.
     # Also, if a cached content file is specified, write the final content tree back out to the cached content file.
+    #N Without this we won't have way to get the content tree object describing the contents of the local directory
     def getContentTree
+      #N Without this we won't have timestamp and the map of file hashes used to efficiently determine the hash of a file which hasn't been modified after the timestamp
       cachedTimeAndMapOfHashes = getCachedContentTreeMapOfHashes
+      #N Without this we won't have the timestamp to compare against file modification times
       cachedTime = cachedTimeAndMapOfHashes[0]
+      #N Without this we won't have the map of file hashes
       cachedMapOfHashes = cachedTimeAndMapOfHashes[1]
+      #N Without this we won't have an empty content tree which can be populated with data describing the files and directories within the base directory
       contentTree = ContentTree.new()
+      #N Without this we won't have a record of a time which precedes the recording of directories, files and hashes (which can be used when this content tree is used as a cached for data when constructing some future content tree)
       contentTree.time = Time.now.utc
+      #N Without this, we won't record information about all sub-directories within this content tree
       for subDir in @baseDirectory.subDirs
+        #N Without this, this sub-directory won't be recorded in the content tree
         contentTree.addDir(subDir.relativePath)
       end
+      #N Without this, we won't record information about the names and contents of all files within this content tree
       for file in @baseDirectory.allFiles
+        #N Without this, we won't know the digest of this file (if we happen to have it) from the cached content tree
         cachedDigest = cachedMapOfHashes[file.relativePath]
+        #N Without this check, we would assume that the cached digest applies to the current file, even if one wasn't available, or if the file has been modified since the time when the cached value was determined.
+        # (Extra note: just checking the file's mtime is not a perfect check, because a file can "change" when actually it or one of it's enclosing sub-directories has been renamed, which might not reset the mtime value for the file itself.)
         if cachedTime and cachedDigest and File.stat(file.fullPath).mtime < cachedTime
+          #N Without this, the digest won't be recorded from the cached digest in those cases where we know the file hasn't changed
           digest = cachedDigest
         else
+          #N Without this, a new digest won't be determined from the calculated hash of the file's actual contents
           digest = hashClass.file(file.fullPath).hexdigest
         end
+        #N Without this, information about this file won't be added to the content tree
         contentTree.addFile(file.relativePath, digest)
       end
+      #N Without this, the files and directories in the content tree might be listed in some indeterminate order
       contentTree.sort!
+      #N Without this check, a new version of the cached content file will attempt to be written, even when no name has been specified for the cached content file
       if cachedContentFile != nil
+        #N Without this, a new version of the cached content file (ready to be used next time) won't be created
         contentTree.writeToFile(cachedContentFile)
       end
       return contentTree
@@ -1204,6 +1254,7 @@ module Synqa
   end
   
   # A directory of files on a remote system
+  #N Without this class, there would be no representation for a "remote" content location, i.e. a directory on the remote system
   class RemoteContentLocation<ContentLocation
     # the remote SshContentHost
     attr_reader :contentHost
