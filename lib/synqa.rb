@@ -1257,51 +1257,67 @@ module Synqa
   #N Without this class, there would be no representation for a "remote" content location, i.e. a directory on the remote system
   class RemoteContentLocation<ContentLocation
     # the remote SshContentHost
+    #N Without this we won't know which user login on which remote server to connect to.
     attr_reader :contentHost
     
     # the base directory on the remote system
+    #N Without this we won't know which directory on the remote system to sync files to
     attr_reader :baseDir
     
+    #N Without this we wouldn't be able to create the remote content location object with read-only attributes
     def initialize(contentHost, baseDir, cachedContentFile = nil)
+      # Without super, we won't remember the cached content file (if specified)
       super(cachedContentFile)
+      # Without this we won't remember which remote server to connect to
       @contentHost = contentHost
+      # Without this we won't remember which directoy on the remote server to sync to.
       @baseDir = normalisedDir(baseDir)
     end
     
+    #N Without this we won't have any way to close cached open connections (and they will leak)
     def closeConnections
+      #N Without this the cached connections won't get closed
       @contentHost.closeConnections()
     end
     
     # list files within the base directory on the remote contentHost
+    #N Without this we won't have an easy way to list all files in the remote directory on the remote system
     def listFiles()
+      #N Without this the files won't get listed
       contentHost.listFiles(baseDir)
     end
     
     # object required to execute SCP (e.g. "scp" or "pscp", possibly with extra args)
+    #N Without this we won't have a handle on the object used to perform SSH/SCP actions
     def sshAndScp
       return contentHost.sshAndScp
     end
     
     # get the full path of a relative path
+    #N Without this we won't have an easy way to get the full path of a file or directory specified relative the remote directory
     def getFullPath(relativePath)
       return baseDir + relativePath
     end
     
     # execute an SSH command on the remote host (or just pretend, if dryRun is true)
+    #N Without this we won't have a direct method to execute SSH commands on the remote server (with dry-run option)
     def ssh(commandString, dryRun = false)
       contentHost.sshAndScp.ssh(commandString, dryRun)
     end
     
     # list all sub-directories of the base directory on the remote host
+    #N Without this we won't have a direct method to list all sub-directories within the remote directory
     def listDirectories
       return contentHost.listDirectories(baseDir)
     end
     
     # list all the file hashes of the files within the base directory
+    #N Without this we won't have a direct method to list files within the remote directory, together with their hashes
     def listFileHashes
       return contentHost.listFileHashes(baseDir)
     end
     
+    #N Without this we won't have an easy way to present a description of this object (for tracing, feedback)
     def to_s
       return contentHost.locationDescriptor(baseDir)
     end
@@ -1310,15 +1326,23 @@ module Synqa
     # otherwise get if from listing directories and files and hash values thereof
     # on the remote host. And also, if the cached content file name is specified, 
     # write the content tree out to that file.
+    #N Without this we won't have a way to get the content tree representing the contents of the remote directory, possibly using an existing cached content tree file (and if not, possibly saving a cached content tree for next time)
     def getContentTree
+      #N Without this check we would try to read the cached content file when there isn't one, or alternatively, we would retrieve the content details remotely, when we could have read them for a cached content file
       if cachedContentFile and File.exists?(cachedContentFile)
+        #N Without this, the content tree won't be read from the cached content file
         return ContentTree.readFromFile(cachedContentFile)
       else
+        #N Without this, we wouldn't retrieve the remote content details
         contentTree = contentHost.getContentTree(baseDir)
+        #N Without this, the content tree might be in an arbitrary order
         contentTree.sort!
+        #N Without this check, we would try to write a cached content file when no name has been specified for it
         if cachedContentFile != nil
+          #N Without this, the cached content file wouldn't be updated from the most recently retrieved details
           contentTree.writeToFile(cachedContentFile)
         end
+        #N Without this, the retrieved sorted content tree won't be retrieved
         return contentTree
       end
     end
