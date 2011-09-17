@@ -1471,20 +1471,32 @@ module Synqa
     
     # Recursively perform all marked copy operations from the source content tree to the
     # destination content tree, or if dryRun, just pretend to perform them.
+    #N Without this, there wouldn't be a way to copy files marked for copying in a source content tree to a destination content tree (or optionally do a dry run)
     def doCopyOperations(sourceContent, destinationContent, dryRun)
+      #N Without this loop, we won't copy the directories that are marked for copying
       for dir in sourceContent.dirs
+        #N Without this check, we would attempt to copy those directories _not_ marked for copying (but which might still have sub-directories marked for copying)
         if dir.copyDestination != nil
+          #N Without this, we won't know what is the full path of the local source directory to be copied
           sourcePath = sourceLocation.getFullPath(dir.relativePath)
+          #N Without this, we won't know the full path of the remote destination directory that this source directory is to be copied into
           destinationPath = destinationLocation.getFullPath(dir.copyDestination.relativePath)
+          #N Without this, the source directory won't actually get copied
           destinationLocation.contentHost.copyLocalToRemoteDirectory(sourcePath, destinationPath, dryRun)
         else
+          #N Without this, we wouldn't copy sub-directories marked for copying of this sub-directory (which is not marked for copying in full)
           doCopyOperations(dir, destinationContent.getDir(dir.name), dryRun)
         end
       end
+      #N Without this loop, we won't copy the files that are marked for copying
       for file in sourceContent.files
+        #N Without this check, we would attempt to copy those files _not_ marked for copying
         if file.copyDestination != nil
+          #N Without this, we won't know what is the full path of the local file to be copied
           sourcePath = sourceLocation.getFullPath(file.relativePath)
+          #N Without this, we won't know the full path of the remote destination directory that this source directory is to be copied into
           destinationPath = destinationLocation.getFullPath(file.copyDestination.relativePath)
+          #N Without this, the file won't actually get copied
           destinationLocation.contentHost.copyLocalFileToRemoteDirectory(sourcePath, destinationPath, dryRun)
         end
       end
@@ -1492,24 +1504,36 @@ module Synqa
     
     # Recursively perform all marked delete operations on the destination content tree, 
     # or if dryRun, just pretend to perform them.
+    #N Without this, we wouldn't have a way to delete files and directories in the remote destination directory which have been marked for deletion (optionally doing it dry run only)
     def doDeleteOperations(destinationContent, dryRun)
+      #N Without this loop, we won't delete all sub-directories or files and directories within sub-directories which have been marked for deletion
       for dir in destinationContent.dirs
+        #N Without this check, we would delete directories which have not been marked for deletion (which would be incorrect)
         if dir.toBeDeleted
+          #N Without this, we won't know the full path of the remote directory to be deleted
           dirPath = destinationLocation.getFullPath(dir.relativePath)
+          #N Without this, the remote directory marked for deletion won't get deleted
           destinationLocation.contentHost.deleteDirectory(dirPath, dryRun)
         else
+          #N Without this, files and sub-directories within this sub-directory which are marked for deletion (even though the sub-directory as a whole hasn't been marked for deletion) won't get deleted.
           doDeleteOperations(dir, dryRun)
         end
       end
+      #N Without this loop, we won't delete files within this directory which have been marked for deletion.
       for file in destinationContent.files
+        #N Without this check, we would delete this file even though it's not marked for deletion (and therefore should not be deleted)
         if file.toBeDeleted
+          #N Without this, we won't know the full path of the file to be deleted
           filePath = destinationLocation.getFullPath(file.relativePath)
+          #N Without this, the file won't actually get deleted
           destinationLocation.contentHost.deleteFile(filePath, dryRun)
         end
       end
     end
     
+    #N Without this there won't be any easy way to close cached SSH connections once the sync operations are all finished (and if we closed the connections as soon as we had finished with them, then we wouldn't be able to cache them)
     def closeConnections
+      #N Without this, cached SSH connections to the remote system won't get closed
       destinationLocation.closeConnections()
     end
   end
