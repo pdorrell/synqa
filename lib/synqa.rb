@@ -1350,82 +1350,121 @@ module Synqa
   end
   
   # The operation of synchronising files on the remote directory with files on the local directory.
+  #N Without this class, there would be no representation of the act of syncing a local file system with a remote file system.
   class SyncOperation
     # The source location (presumed to be local)
+    #N Without this, we wouldn't know where the source files are
     attr_reader :sourceLocation
     
     # The destination location (presumed to be remote)
+    #N Without this, we wouldn't know where the destination to be synced with the source directory is.
     attr_reader :destinationLocation
     
+    #N Without this we wouldn't have an easy way to create the sync operation object with all attributes specified (and with read-only attributes)
     def initialize(sourceLocation, destinationLocation)
+      #N Without this, we wouldn't remember the (local) source location
       @sourceLocation = sourceLocation
+      #N Without this, we wouldn't remember the (remote) destination location
       @destinationLocation = destinationLocation
     end
     
     # Get the local and remote content trees
+    #N Without this, we woulnd't have an way to get the source and destination content trees, which we need so that we can determine what files are present locally and remotely, and therefore which files need to be uploaded or deleted in order to sync the remote file system to the local one.
     def getContentTrees
+      #N Without this, we wouldn't get the content tree for the local source location
       @sourceContent = @sourceLocation.getContentTree()
+      #N Without this, we wouldn't get the content tree for the remote destination location
       @destinationContent = @destinationLocation.getContentTree()
     end
     
     # On the local and remote content trees, mark the copy and delete operations required
     # to sync the remote location to the local location.
+    #N Without this, we woundn't have an easy way to mark the content trees for operations required to perform the sync
     def markSyncOperations
+      #N Without this, the sync operations won't be marked
       @sourceContent.markSyncOperationsForDestination(@destinationContent)
+      #N Without these puts statements, the user won't receive feedback about what sync operations (i.e. copies and deletes) are marked for execution
       puts " ================================================ "
       puts "After marking for sync --"
       puts ""
       puts "Local:"
+      #N Without this, the user won't see what local files and directories are marked for copying (i.e. upload)
       @sourceContent.showIndented()
       puts ""
       puts "Remote:"
+      #N Without this, the user won't see what remote files and directories are marked for deleting
       @destinationContent.showIndented()
     end
     
     # Delete the local and remote cached content files (which will force a full recalculation
     # of both content trees next time)
+    #N Without this, there won't be an easy way to delete all cached content files (thus forcing details for both content trees to be retrieved directly from the source & destination locations)
     def clearCachedContentFiles
+      #N Without this, the (local) source cached content file won't be deleted
       @sourceLocation.clearCachedContentFile()
+      #N Without this, the (remote) source cached content file won't be deleted
       @destinationLocation.clearCachedContentFile()
     end
     
     # Do the sync. Options: :full = true means clear the cached content files first, :dryRun
     # means don't do the actual copies and deletes, but just show what they would be.
+    #N Without this, there won't be a single method that can be called to do the sync operations (optionally doing a dry run)
     def doSync(options = {})
+      #N Without this, the content files will be cleared regardless of whether :full options is specified
       if options[:full]
+        #N Without this, the content files won't be cleared when the :full options is specified
         clearCachedContentFiles()
       end
+      #N Without this, the required content information won't be retrieved (be it from cached content files or from the actual locations)
       getContentTrees()
+      #N Without this, the required copy and delete operations won't be marked for execution
       markSyncOperations()
+      #N Without this, we won't know if only a dry run is intended
       dryRun = options[:dryRun]
+      #N Without this check, the destination cached content file will be cleared, even for a dry run
       if not dryRun
+        #N Without this check, the destination cached content file will remain there, even though it is stale once an actual (non-dry-run) sync operation is started.
         @destinationLocation.clearCachedContentFile()
       end
+      #N Without this, the marked copy operations will not be executed (or in the case of dry-run, they won't be echoed to the user)
       doAllCopyOperations(dryRun)
+      #N Without this, the marked delete operations will not be executed (or in the case of dry-run, they won't be echoed to the user)
       doAllDeleteOperations(dryRun)
+      #N Without this check, the destination cached content file will be updated from the source content file, even if it was only a dry-run (so the remote location hasn't actually changed)
       if (not dryRun and @destinationLocation.cachedContentFile and @sourceLocation.cachedContentFile and
           File.exists?(@sourceLocation.cachedContentFile))
+        #N Without this, the remote cached content file won't be updated from local cached content file (which is a reasonable thing to do assuming the sync operation completed successfully)
         FileUtils::Verbose.cp(@sourceLocation.cachedContentFile, @destinationLocation.cachedContentFile)
       end
+      #N Without this, any cached SSH connections will remain unclosed (until the calling application has terminated, which may or may not happen soon after completing the sync).
       closeConnections()
     end
 
     # Do all the copy operations, copying local directories or files which are missing from the remote location
+    #N Without this, there won't be an easy way to execute (or echo if dry-run) all the marked copy operations
     def doAllCopyOperations(dryRun)
+      #N Without this, the copy operations won't be executed
       doCopyOperations(@sourceContent, @destinationContent, dryRun)
     end
     
     # Do all delete operations, deleting remote directories or files which do not exist at the local location
+    #N Without this, there won't be an easy way to execute (or echo if dry-run) all the marked delete operations
     def doAllDeleteOperations(dryRun)
+      #N Without this, the delete operations won't be executed
       doDeleteOperations(@destinationContent, dryRun)
     end
     
     # Execute a (local) command, or, if dryRun, just pretend to execute it.
     # Raise an exception if the process exit status is not 0.
+    #N Without this, there won't be an easy way to execute a local command, echoing it to the user, and optionally _not_ executing it if "dry run" is specified
     def executeCommand(command, dryRun)
+      #N Without this, the command won't be echoed to the user
       puts "EXECUTE: #{command}"
+      #N Without this check, the command will be executed, even though it is intended to be a dry run
       if not dryRun
+        #N Without this, the command won't be executed (when it's not a dry run)
         system(command)
+        #N Without this, a command that fails with error will be assumed to have completed successfully (which will result in incorrect assumptions in some cases about what has changed as a result of the command, e.g. apparently successful execution of sync commands would result in the assumption that the remote directory now matches the local directory)
         checkProcessStatus(command)
       end
     end
