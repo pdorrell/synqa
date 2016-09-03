@@ -1,9 +1,5 @@
 require 'rspec/core/rake_task'
 
-gems_dir = "#{ENV['HOME']}/.gem"
-ENV['GEM_HOME'] = gems_dir
-ENV['GEM_PATH'] = gems_dir
-
 begin
   require "bundler"
   Bundler.setup
